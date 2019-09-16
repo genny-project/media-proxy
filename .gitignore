@@ -1,0 +1,14 @@
+/target/*
+src/main/resources/media-proxy-git.properties
+.classpath
+.project
+.settings/*
+.factorypath
+/file-uploads/*
+/.apt_generated/*
+/.apt_generated_tests/
+/.vertx/*
+/dis/*
+/bin/*
+!.gitignore
+
