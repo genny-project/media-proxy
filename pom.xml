@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>life.genny</groupId>
 	<artifactId>media-proxy</artifactId>
-	<version>v3.1.0</version>
+	<version>3.1.0</version>
 	<name>media-proxy</name>
 	<properties>
 		<vertx.version>3.5.1</vertx.version>
 		<minio.version>6.0.2</minio.version>
-		<genny-verticle.version>3.1.0</genny-verticle.version>
+		<genny-verticle.version>${project.version}</genny-verticle.version>
 	</properties>
 
        <licenses>
