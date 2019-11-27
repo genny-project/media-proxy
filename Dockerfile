@@ -1,4 +1,4 @@
-FROM  openjdk:8u151-jre-alpine3.7
+FROM openjdk:8u212-jre-alpine3.9 
 RUN echo http://mirror.yandex.ru/mirrors/alpine/v3.7/main > /etc/apk/repositories; \
     echo http://mirror.yandex.ru/mirrors/alpine/v3.7/community >> /etc/apk/repositories
 
