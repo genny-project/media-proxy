@@ -12,3 +12,4 @@ src/main/resources/media-proxy-git.properties
 /bin/*
 !.gitignore
 
+/target/
