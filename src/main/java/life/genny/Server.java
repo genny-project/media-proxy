@@ -18,8 +18,12 @@ import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Server {
+  private static final Logger log = LoggerFactory.getLogger(Server.class);
+
 
   private final static int serverPort;
 
@@ -139,6 +143,7 @@ public class Server {
     if(!isAllowed){
       ctx.response().setStatusCode(401).end();
     }else {
+      log.info("Received post request");
       Set<FileUpload> fileUploads = ctx.fileUploads();
       List<Map<String,String>> fileObjects = fileUploads.stream().map(file -> {
         UUID fileUUID = Minio.saveOnStore(file);
@@ -146,6 +151,7 @@ public class Server {
         List<Map<String,String>> list = new ArrayList<>();
         map.put("name", file.fileName());
         map.put("uuid", fileUUID.toString() );
+        log.info("File Name:" + file.fileName() + ", uuid:" + fileUUID.toString());
         list.add(map);
         return list;
       }).reduce((acc,element)->{
@@ -156,6 +162,7 @@ public class Server {
       map.put("files", fileObjects);
       String json = JsonUtils.toJson(map);
       ctx.response().putHeader("Context-Type", "application/json").end(json);
+      log.info("Finish process post request");
     }
   }
 
