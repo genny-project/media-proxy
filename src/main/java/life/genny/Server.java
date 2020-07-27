@@ -146,6 +146,7 @@ public class Server {
         List<Map<String,String>> list = new ArrayList<>();
         map.put("name", file.fileName());
         map.put("uuid", fileUUID.toString() );
+        System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
         list.add(map);
         return list;
       }).reduce((acc,element)->{

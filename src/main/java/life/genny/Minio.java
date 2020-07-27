@@ -45,8 +45,11 @@ public class Minio {
   public static String getTokenFromHeader(RoutingContext ctx) {
     MultiMap headers = ctx.request().headers();
     String authValue = headers.get("Authorization");
+    System.out.println("DEBUG, authValue:" + authValue);
     String[] split = authValue.split(" ");
+    System.out.println("DEBUG, split:" + split);
     String token = split[1];
+    System.out.println("DEBUG, token:" + token);
     return token;
   }
 
