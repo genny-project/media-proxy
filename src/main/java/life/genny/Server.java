@@ -1,5 +1,13 @@
 package life.genny;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,7 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import javax.activation.MimetypesFileTypeMap;
+import org.apache.commons.io.FileUtils;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
@@ -18,7 +27,7 @@ import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
-
+import org.apache.tika.*;
 public class Server {
 
   private final static int serverPort;
@@ -170,7 +179,19 @@ public class Server {
       for(byte e: fetchFromStore) {
         buffer.appendByte(e);
       }
-      ctx.response().putHeader("Content-Type", "image/png").end(buffer);
+      InputStream targetStream = new ByteArrayInputStream(fetchFromStore);
+      File f = new File("/tmp/"+ UUID.randomUUID());
+      String mimeType = null;
+      Tika tika = new Tika();
+      try {
+        FileUtils.copyInputStreamToFile(targetStream, f);
+        mimeType = tika.detect(f);
+      } catch (IOException e1) {
+        // TODO Auto-generated catch block
+        e1.printStackTrace();
+      }
+      f.delete();
+      ctx.response().putHeader("Content-Type", mimeType).end(buffer);
     }
   }
 
