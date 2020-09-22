@@ -32,6 +32,7 @@ public class Server {
 
   private final static int serverPort;
 
+  private final static String APPLICATION_X_MATROSKA = "application/x-matroska";
   static {
     serverPort =
         Optional.ofNullable(System.getenv("MEDIA_PROXY_SERVER_PORT"))
@@ -186,6 +187,10 @@ public class Server {
       try {
         FileUtils.copyInputStreamToFile(targetStream, f);
         mimeType = tika.detect(f);
+
+        if(APPLICATION_X_MATROSKA.equals(mimeType))
+          mimeType = "video/webm";
+
       } catch (IOException e1) {
         // TODO Auto-generated catch block
         e1.printStackTrace();
