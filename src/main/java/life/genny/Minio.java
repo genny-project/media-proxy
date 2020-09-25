@@ -1,5 +1,7 @@
 package life.genny;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
@@ -61,11 +63,16 @@ public class Minio {
 
   public static UUID saveOnStore(FileUpload file) {
     UUID randomUUID = UUID.randomUUID();
-    uploadFile( 
-        "public",
-        file.contentType(),
-        file.uploadedFileName(),
-        randomUUID.toString());
+    String fileInfoName = "file-uploads/".concat(randomUUID.toString().concat("-info"));
+    File fileInfo = new File(fileInfoName);
+    try(FileWriter myWriter = new FileWriter(fileInfo.getPath());) {
+      myWriter.write(file.fileName());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    uploadFile("public",file.uploadedFileName(),randomUUID.toString());
+    uploadFile("public",fileInfo.getPath(),randomUUID.toString().concat("-info"));
+    fileInfo.delete();
     return randomUUID;
 
   }
@@ -73,7 +80,6 @@ public class Minio {
   public static UUID saveOnStore(FileUpload file,UUID userUUID) {
     UUID randomUUID = UUID.randomUUID();
     uploadFile(userUUID.toString(), 
-        file.contentType(),
         file.uploadedFileName(),
         randomUUID.toString());
     return randomUUID;
@@ -96,6 +102,22 @@ public class Minio {
     }
   }
 
+  public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
+    try {
+      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
+           "public" + "/" + "media" + "/"+ fileUUID.toString().concat("-info"));
+      byte[] byteArray = IOUtils.toByteArray(object);
+      return new String(byteArray);
+    } catch (InvalidKeyException | InvalidBucketNameException
+        | NoSuchAlgorithmException | InsufficientDataException
+        | NoResponseException | ErrorResponseException
+        | InternalException | InvalidArgumentException | IOException
+        | XmlPullParserException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+      return "";
+    }
+  }
   public static byte[] fetchFromStorePublicDirectory(UUID fileUUID) {
     try {
       InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
@@ -127,7 +149,7 @@ public class Minio {
     }
   }
 
-  public static void uploadFile(String sub, String mediaType,
+  public static void uploadFile(String sub,
       String inpt, String uuid) {
 
     String path = sub + "/" + "media" + "/" + uuid;

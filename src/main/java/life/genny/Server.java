@@ -172,31 +172,40 @@ public class Server {
 
   public static void publicFindFileHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+    
     byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
+    String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+
     if(fetchFromStore.length == 0) {
       ctx.response().setStatusCode(404).end();
+
     }else {
-      Buffer buffer = Buffer.buffer();
-      for(byte e: fetchFromStore) {
-        buffer.appendByte(e);
-      }
-      InputStream targetStream = new ByteArrayInputStream(fetchFromStore);
-      File f = new File("/tmp/"+ UUID.randomUUID());
+
+      File f = new File("/tmp/"+ fileName);
       String mimeType = null;
       Tika tika = new Tika();
+      Buffer buffer = Buffer.buffer();
       try {
-        FileUtils.copyInputStreamToFile(targetStream, f);
+        FileUtils.writeByteArrayToFile(f, fetchFromStore);
         mimeType = tika.detect(f);
 
         if(APPLICATION_X_MATROSKA.equals(mimeType))
           mimeType = "video/webm";
+        
+        for(byte e: FileUtils.readFileToByteArray(f)) {
+          buffer.appendByte(e);
+        }
 
       } catch (IOException e1) {
         // TODO Auto-generated catch block
         e1.printStackTrace();
       }
+
       f.delete();
-      ctx.response().putHeader("Content-Type", mimeType).end(buffer);
+      ctx.response().putHeader("Content-Type", mimeType)
+                    .putHeader("Content-Disposition",
+                        "attachment; filename= ".concat(fileName))
+                    .end(buffer);
     }
   }
 
