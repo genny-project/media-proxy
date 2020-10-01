@@ -177,7 +177,7 @@ public class Server {
   public static void publicFindFileNameHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
     String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
-    if(fileName == null) {
+    if(fileName.equals("")) {
       ctx.response().setStatusCode(404).end();
     }else {
       ctx.response().putHeader("Content-Type", "application/json")
@@ -187,10 +187,12 @@ public class Server {
 
   public static void publicFindFileHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-    
+
     byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
     String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
-
+    if(fileName.equals("")) {
+      fileName = fileUUID.toString();
+    }
     if(fetchFromStore.length == 0) {
       ctx.response().setStatusCode(404).end();
 
