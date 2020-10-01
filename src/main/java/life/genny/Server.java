@@ -181,7 +181,7 @@ public class Server {
       ctx.response().setStatusCode(404).end();
     }else {
       ctx.response().putHeader("Content-Type", "application/json")
-                    .end(new JsonObject().put("name", fileName).toString());
+                    .end(new JsonObject().put("data",new JsonObject().put("name", fileName)).toString());
     }
   }
 
