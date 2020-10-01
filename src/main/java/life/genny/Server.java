@@ -177,7 +177,7 @@ public class Server {
   public static void publicFindFileNameHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
     String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
-    if(fileName != null) {
+    if(fileName == null) {
       ctx.response().setStatusCode(404).end();
     }else {
       ctx.response().putHeader("Content-Type", "application/json")
