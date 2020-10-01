@@ -18,6 +18,7 @@ import java.util.UUID;
 import javax.activation.MimetypesFileTypeMap;
 import org.apache.commons.io.FileUtils;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
 import io.vertx.rxjava.ext.web.FileUpload;
@@ -80,6 +81,9 @@ public class Server {
 
     router.route(HttpMethod.GET, "/public/:fileuuid")
         .blockingHandler(Server::publicFindFileHandler);
+
+    router.route(HttpMethod.GET, "/public/:fileuuid/name")
+        .blockingHandler(Server::publicFindFileNameHandler);
 
     router.route(HttpMethod.DELETE, "/public/:fileuuid")
         .blockingHandler(Server::publicDeleteFileHandler);
@@ -167,6 +171,17 @@ public class Server {
       map.put("files", fileObjects);
       String json = JsonUtils.toJson(map);
       ctx.response().putHeader("Context-Type", "application/json").end(json);
+    }
+  }
+
+  public static void publicFindFileNameHandler(RoutingContext ctx) {
+    UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+    String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+    if(fileName != null) {
+      ctx.response().setStatusCode(404).end();
+    }else {
+      ctx.response().putHeader("Content-Type", "application/json")
+                    .end(new JsonObject().put("name", fileName).toString());
     }
   }
 
