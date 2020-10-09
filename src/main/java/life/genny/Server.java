@@ -148,6 +148,7 @@ public class Server {
   public static void publicFileUploadHandler(RoutingContext ctx) {
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
+    Minio.extractRealm(tokenFromHeader);
     Vertx vertx = MonoVertx.getInstance().getVertx();
     Boolean isAllowed = TokenIntrospection.checkAuthForRoles(vertx, roles, tokenFromHeader);
     if(!isAllowed){

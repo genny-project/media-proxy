@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Optional;
 import java.util.UUID;
 import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParserException;
@@ -28,7 +29,7 @@ import life.genny.qwandautils.KeycloakUtils;
 public class Minio {
 
   private static MinioClient minioClient;
-
+  private static String REALM = Optional.ofNullable(System.getenv("REALM")).orElse("internmatch");
   static {
     try {
       minioClient =
@@ -55,6 +56,14 @@ public class Minio {
     return token;
   }
 
+  public static String extractRealm(String token) {
+    JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
+    String kcRealmUrl = decodedToken.get("iss").toString();
+    String[] split = kcRealmUrl.split("/");
+    int length = split.length;
+    String realm = split[length-1];
+    return realm;
+  }
   public static UUID extractUserUUID(String token) {
     JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
     UUID userUUID = UUID.fromString(decodedToken.get("sub").toString());
@@ -70,8 +79,8 @@ public class Minio {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    uploadFile("public",file.uploadedFileName(),randomUUID.toString());
-    uploadFile("public",fileInfo.getPath(),randomUUID.toString().concat("-info"));
+    uploadFile(REALM.concat("/")+"public",file.uploadedFileName(),randomUUID.toString());
+    uploadFile(REALM.concat("/")+"public",fileInfo.getPath(),randomUUID.toString().concat("-info"));
     fileInfo.delete();
     return randomUUID;
 
@@ -105,7 +114,10 @@ public class Minio {
   public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
     try {
       InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-           "public" + "/" + "media" + "/"+ fileUUID.toString().concat("-info"));
+           REALM + "/" + 
+           "public" + "/" + 
+           "media"  + "/" + 
+           fileUUID.toString().concat("-info"));
       byte[] byteArray = IOUtils.toByteArray(object);
       return new String(byteArray);
     } catch (InvalidKeyException | InvalidBucketNameException
@@ -118,10 +130,14 @@ public class Minio {
       return "";
     }
   }
+
   public static byte[] fetchFromStorePublicDirectory(UUID fileUUID) {
     try {
       InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-           "public" + "/" + "media" + "/"+ fileUUID.toString());
+           REALM + "/" + 
+           "public" + "/" + 
+           "media"  + "/" + 
+           fileUUID.toString());
       byte[] byteArray = IOUtils.toByteArray(object);
       return byteArray;
     } catch (InvalidKeyException | InvalidBucketNameException
@@ -138,7 +154,10 @@ public class Minio {
   public static void deleteFromStorePublicDirectory(UUID fileUUID) {
     try {
       minioClient.removeObject(EnvironmentVariables.BUCKET_NAME,
-           "public" + "/" + "media" + "/"+ fileUUID.toString());
+           REALM + "/" + 
+           "public" + "/" + 
+           "media"  + "/" +
+           fileUUID.toString());
     } catch (InvalidKeyException | InvalidBucketNameException
         | NoSuchAlgorithmException | InsufficientDataException
         | NoResponseException | ErrorResponseException
