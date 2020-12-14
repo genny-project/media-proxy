@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>life.genny</groupId>
 	<artifactId>media-proxy</artifactId>
-	<version>7.10.0</version>
+	<version>7.11.0</version>
 	<name>media-proxy</name>
 	<properties>
 		<vertx.version>3.5.1</vertx.version>
