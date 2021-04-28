@@ -1,6 +1,8 @@
 package life.genny;
 
-import io.vertx.rxjava.core.Vertx;
+import io.vertx.core.Vertx;
+
+//import io.vertx.rxjava.core.Vertx;
 
 public class MonoVertx {
 

@@ -1,6 +1,6 @@
 package life.genny;
 
-import io.vertx.rxjava.core.AbstractVerticle;
+import io.vertx.core.AbstractVerticle;
 
 public class MediaVerticle extends AbstractVerticle {
   

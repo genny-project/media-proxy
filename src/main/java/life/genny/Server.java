@@ -20,6 +20,7 @@ import org.apache.commons.io.FileUtils;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
+//import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.Router;
@@ -60,7 +61,7 @@ public class Server {
   }
 
   public static void run() {
-    Vertx vertx = MonoVertx.getInstance().getVertx();
+    Vertx vertx = Vertx.newInstance(MonoVertx.getInstance().getVertx());
     Router router = Router.router(vertx);
     router.route().handler(corsHandler());
     /*
@@ -94,8 +95,7 @@ public class Server {
   public static void userFileUploadHandler(RoutingContext ctx) {
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
-    Vertx vertx = MonoVertx.getInstance().getVertx();
-    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(vertx, roles, tokenFromHeader);
+    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
     if(!isAllowed){
       ctx.response().setStatusCode(401).end();
     }
@@ -124,8 +124,7 @@ public class Server {
   public static void userFindFileHandler(RoutingContext ctx) {
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
-    Vertx vertx = MonoVertx.getInstance().getVertx();
-    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(vertx, roles, tokenFromHeader);
+    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
     if(!isAllowed){
       ctx.response().setStatusCode(401).end();
     }
@@ -149,8 +148,7 @@ public class Server {
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
     Minio.extractRealm(tokenFromHeader);
-    Vertx vertx = MonoVertx.getInstance().getVertx();
-    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(vertx, roles, tokenFromHeader);
+    Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
     if(!isAllowed){
       ctx.response().setStatusCode(401).end();
     }else {
