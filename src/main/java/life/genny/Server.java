@@ -68,7 +68,7 @@ public class Server {
      * setBodyLimit expected a long that defines the number of bytes so a file of 100 kilobytes should
      * be written as 100000L
      */
-    router.route().handler(BodyHandler.create().setBodyLimit(5000000L)
+    router.route().handler(BodyHandler.create()
         .setDeleteUploadedFilesOnEnd(true));
 
     router.route(HttpMethod.POST, "/media")
