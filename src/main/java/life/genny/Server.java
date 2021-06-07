@@ -1,13 +1,7 @@
 package life.genny;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,12 +9,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import javax.activation.MimetypesFileTypeMap;
+
 import org.apache.commons.io.FileUtils;
+import org.apache.tika.Tika;
+
+import io.minio.ObjectStat;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-//import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.Router;
@@ -29,12 +25,13 @@ import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
-import org.apache.tika.*;
 public class Server {
 
   private final static int serverPort;
 
   private final static String APPLICATION_X_MATROSKA = "application/x-matroska";
+  private final static int CHUNK_SIZE = 100000;
+
   static {
     serverPort =
         Optional.ofNullable(System.getenv("MEDIA_PROXY_SERVER_PORT"))
@@ -85,6 +82,12 @@ public class Server {
 
     router.route(HttpMethod.GET, "/public/:fileuuid/name")
         .blockingHandler(Server::publicFindFileNameHandler);
+
+    router.route(HttpMethod.GET, "/public/video/:fileuuid")
+        .blockingHandler(Server::publicFindVideoHandler);
+
+    //router.route(HttpMethod.GET, "/public/video/:fileuuid/name")
+        //.blockingHandler(Server::publicFindVideoNameHandler);
 
     router.route(HttpMethod.DELETE, "/public/:fileuuid")
         .blockingHandler(Server::publicDeleteFileHandler);
@@ -181,6 +184,33 @@ public class Server {
     }else {
       ctx.response().putHeader("Content-Type", "application/json")
                     .end(new JsonObject().put("data",new JsonObject().put("name", fileName)).toString());
+    }
+  }
+
+  public static void publicFindVideoHandler(RoutingContext ctx) {
+    UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+    ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+    if(stat.length() == 0) {
+      ctx.response().setStatusCode(404).end();
+    }else {
+      Buffer buffer = Buffer.buffer();
+      long videoSize = stat.length();
+      String range = ctx.request().getHeader("Range");
+      long start = Long.valueOf(range.substring(6).replace("-",""));
+      long end = Math.min(start + CHUNK_SIZE, videoSize -1);
+      byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID,start,end);
+      System.out.println("here is the length ::" + fetchFromStore.length);
+      for (byte e : fetchFromStore)
+        buffer.appendByte(e);
+      long contentLength = end - start + 1;
+      ctx.response()
+        .setStatusCode(206)
+        .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
+        .putHeader("Content-Type", "video/mp4")
+        .putHeader("Content-Length", String.valueOf(contentLength))
+        .putHeader("Accept-Ranges", "bytes")
+        .setChunked(true)
+        .write(buffer);
     }
   }
 
