@@ -30,7 +30,7 @@ public class Server {
   private final static int serverPort;
 
   private final static String APPLICATION_X_MATROSKA = "application/x-matroska";
-  private final static int CHUNK_SIZE = 100000;
+  private final static int CHUNK_SIZE = 1000000;
 
   static {
     serverPort =
@@ -148,14 +148,19 @@ public class Server {
   }
 
   public static void publicFileUploadHandler(RoutingContext ctx) {
+      Set<FileUpload> fileUploads = ctx.fileUploads();
+      System.out.println("posted image :: "+fileUploads.size());
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
     Minio.extractRealm(tokenFromHeader);
     Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+      System.out.println("on else posted image :: ");
     if(!isAllowed){
       ctx.response().setStatusCode(401).end();
     }else {
-      Set<FileUpload> fileUploads = ctx.fileUploads();
+      System.out.println("on else posted image :: ");
+      //Set<FileUpload> fileUploads = ctx.fileUploads();
+      //System.out.println("posted image :: "+fileUploads.size());
       List<Map<String,String>> fileObjects = fileUploads.stream().map(file -> {
         UUID fileUUID = Minio.saveOnStore(file);
         Map<String,String> map = new HashMap<>();
@@ -199,7 +204,6 @@ public class Server {
       long start = Long.valueOf(range.substring(6).replace("-",""));
       long end = Math.min(start + CHUNK_SIZE, videoSize -1);
       byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID,start,end);
-      System.out.println("here is the length ::" + fetchFromStore.length);
       for (byte e : fetchFromStore)
         buffer.appendByte(e);
       long contentLength = end - start + 1;
@@ -207,9 +211,9 @@ public class Server {
         .setStatusCode(206)
         .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
         .putHeader("Content-Type", "video/mp4")
+        .putHeader("Connection", "keep-alive")
         .putHeader("Content-Length", String.valueOf(contentLength))
         .putHeader("Accept-Ranges", "bytes")
-        .setChunked(true)
         .write(buffer);
     }
   }
