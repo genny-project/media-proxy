@@ -14,6 +14,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 
 import io.minio.ObjectStat;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
@@ -211,7 +212,8 @@ public class Server {
         .setStatusCode(206)
         .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
         .putHeader("Content-Type", "video/mp4")
-        .putHeader("Keep-Alive", "timeout=15,max=100")
+        .putHeader(HttpHeaders.TRANSFER_ENCODING, "chunked")
+        .setChunked(true)
         .putHeader("Content-Length", String.valueOf(contentLength))
         .putHeader("Accept-Ranges", "bytes")
         .write(buffer);
