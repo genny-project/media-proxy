@@ -211,6 +211,7 @@ public class Server {
         .setStatusCode(206)
         .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
         .putHeader("Content-Type", "video/mp4")
+        .putHeader("Cust-H", "keep-alive")
         .putHeader("Connection", "keep-alive")
         .putHeader("Content-Length", String.valueOf(contentLength))
         .putHeader("Accept-Ranges", "bytes")
