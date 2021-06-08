@@ -42,6 +42,7 @@ public class Server {
   private static final String X_REQUESTED_WITH = "X-Requested-With";
   private static final String X_TOTAL_COUNT = "X-Total-Count";
   private static final String CONTENT_TYPE = "Content-Type";
+  private static final String CONNECTION = "Connection";
   private static final String ACCESS_CONTROL_ALLOW_ORIGIN =
       "Access-Control-Allow-Origin";
   private static final String CONTENT_RANGE = "Content-Range";
@@ -54,7 +55,9 @@ public class Server {
         .allowedMethod(HttpMethod.OPTIONS).allowedHeader(X_PINGARUNER)
         .allowedHeader(CONTENT_TYPE).allowedHeader(X_REQUESTED_WITH)
         .allowedHeader(ACCESS_CONTROL_ALLOW_ORIGIN)
-        .allowedHeader(X_TOTAL_COUNT).exposedHeader(CONTENT_RANGE);
+        .allowedHeader(X_TOTAL_COUNT)
+        .allowedHeader(CONNECTION)
+        .exposedHeader(CONTENT_RANGE);
   }
 
   public static void run() {
