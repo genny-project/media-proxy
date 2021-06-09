@@ -14,16 +14,21 @@ import org.apache.commons.io.FileUtils;
 import org.apache.tika.Tika;
 
 import io.minio.ObjectStat;
+import io.vertx.core.http.Http2Settings;
+import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
+import io.vertx.rxjava.core.http.HttpServerResponse;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
 import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
+import io.vertx.rxjava.ext.web.handler.StaticHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
 public class Server {
@@ -92,7 +97,7 @@ public class Server {
 
     router.route(HttpMethod.DELETE, "/public/:fileuuid")
         .blockingHandler(Server::publicDeleteFileHandler);
-	vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
+    vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
   }
 
 
@@ -193,6 +198,7 @@ public class Server {
     }
   }
 
+
   public static void publicFindVideoHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
     ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
@@ -203,20 +209,17 @@ public class Server {
       long videoSize = stat.length();
       String range = ctx.request().getHeader("Range");
       long start = Long.valueOf(range.substring(6).replace("-",""));
+      long length = start + CHUNK_SIZE < videoSize ? CHUNK_SIZE : Math.abs(videoSize - start + CHUNK_SIZE - 1 );
       long end = Math.min(start + CHUNK_SIZE, videoSize -1);
-      byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID,start,end);
+      byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID,start,length);
       for (byte e : fetchFromStore)
         buffer.appendByte(e);
-      long contentLength = end - start + 1;
       ctx.response()
         .setStatusCode(206)
         .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
         .putHeader("Content-Type", "video/mp4")
-        .putHeader(HttpHeaders.TRANSFER_ENCODING, "chunked")
-        .setChunked(true)
-        .putHeader("Content-Length", String.valueOf(contentLength))
         .putHeader("Accept-Ranges", "bytes")
-        .write(buffer);
+        .end(buffer);
     }
   }
 
