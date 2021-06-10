@@ -12,6 +12,7 @@ import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParserException;
 import com.amazonaws.util.IOUtils;
 import io.minio.MinioClient;
+import io.minio.ObjectStat;
 import io.minio.errors.ErrorResponseException;
 import io.minio.errors.InsufficientDataException;
 import io.minio.errors.InternalException;
@@ -37,10 +38,8 @@ public class Minio {
               EnvironmentVariables.MINIO_ACCESS_KEY,
               EnvironmentVariables.MINIO_PRIVATE_KEY);
     } catch (InvalidEndpointException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (InvalidPortException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
   }
@@ -105,12 +104,28 @@ public class Minio {
         | NoResponseException | ErrorResponseException
         | InternalException | InvalidArgumentException | IOException
         | XmlPullParserException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
       return new byte[] {};
     }
   }
 
+  public static ObjectStat fetchStatFromStorePublicDirectory(UUID fileUUID) {
+    try {
+      ObjectStat object = minioClient.statObject(EnvironmentVariables.BUCKET_NAME,
+           REALM + "/" + 
+           "public" + "/" + 
+           "media"  + "/" + 
+           fileUUID.toString());
+      return object;
+    } catch (InvalidKeyException | InvalidBucketNameException
+        | NoSuchAlgorithmException | InsufficientDataException
+        | NoResponseException | ErrorResponseException
+        | InternalException | IOException
+        | XmlPullParserException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
   public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
     try {
       InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
@@ -125,12 +140,29 @@ public class Minio {
         | NoResponseException | ErrorResponseException
         | InternalException | InvalidArgumentException | IOException
         | XmlPullParserException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
       return "";
     }
   }
 
+  public static byte[] streamFromStorePublicDirectory(UUID fileUUID,Long start, Long end) {
+    try {
+      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
+           REALM + "/" + 
+           "public" + "/" + 
+           "media"  + "/" + 
+           fileUUID.toString(),start,end);
+      byte[] byteArray = IOUtils.toByteArray(object);
+      return byteArray;
+    } catch (InvalidKeyException | InvalidBucketNameException
+        | NoSuchAlgorithmException | InsufficientDataException
+        | NoResponseException | ErrorResponseException
+        | InternalException | InvalidArgumentException | IOException
+        | XmlPullParserException e) {
+      e.printStackTrace();
+      return new byte[] {};
+    }
+  }
   public static byte[] fetchFromStorePublicDirectory(UUID fileUUID) {
     try {
       InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
@@ -145,7 +177,6 @@ public class Minio {
         | NoResponseException | ErrorResponseException
         | InternalException | InvalidArgumentException | IOException
         | XmlPullParserException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
       return new byte[] {};
     }
@@ -163,7 +194,6 @@ public class Minio {
         | NoResponseException | ErrorResponseException
         | InternalException | InvalidArgumentException | IOException
         | XmlPullParserException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
   }

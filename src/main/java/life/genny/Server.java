@@ -1,13 +1,7 @@
 package life.genny;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,26 +9,35 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import javax.activation.MimetypesFileTypeMap;
+
 import org.apache.commons.io.FileUtils;
+import org.apache.tika.Tika;
+
+import io.minio.ObjectStat;
+import io.vertx.core.http.Http2Settings;
+import io.vertx.core.http.HttpConnection;
+import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
-//import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
+import io.vertx.rxjava.core.http.HttpServerResponse;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
 import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
+import io.vertx.rxjava.ext.web.handler.StaticHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
-import org.apache.tika.*;
 public class Server {
 
   private final static int serverPort;
 
   private final static String APPLICATION_X_MATROSKA = "application/x-matroska";
+  private final static int CHUNK_SIZE = 1000000;
+
   static {
     serverPort =
         Optional.ofNullable(System.getenv("MEDIA_PROXY_SERVER_PORT"))
@@ -57,7 +60,8 @@ public class Server {
         .allowedMethod(HttpMethod.OPTIONS).allowedHeader(X_PINGARUNER)
         .allowedHeader(CONTENT_TYPE).allowedHeader(X_REQUESTED_WITH)
         .allowedHeader(ACCESS_CONTROL_ALLOW_ORIGIN)
-        .allowedHeader(X_TOTAL_COUNT).exposedHeader(CONTENT_RANGE);
+        .allowedHeader(X_TOTAL_COUNT)
+        .exposedHeader(CONTENT_RANGE);
   }
 
   public static void run() {
@@ -86,9 +90,12 @@ public class Server {
     router.route(HttpMethod.GET, "/public/:fileuuid/name")
         .blockingHandler(Server::publicFindFileNameHandler);
 
+    router.route(HttpMethod.GET, "/public/video/:fileuuid")
+        .blockingHandler(Server::publicFindVideoHandler);
+
     router.route(HttpMethod.DELETE, "/public/:fileuuid")
         .blockingHandler(Server::publicDeleteFileHandler);
-	vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
+    vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
   }
 
 
@@ -181,6 +188,31 @@ public class Server {
     }else {
       ctx.response().putHeader("Content-Type", "application/json")
                     .end(new JsonObject().put("data",new JsonObject().put("name", fileName)).toString());
+    }
+  }
+
+
+  public static void publicFindVideoHandler(RoutingContext ctx) {
+    UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+    ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+    if(stat.length() == 0) {
+      ctx.response().setStatusCode(404).end();
+    }else {
+      Buffer buffer = Buffer.buffer();
+      long videoSize = stat.length();
+      String range = ctx.request().getHeader("Range");
+      long start = Long.valueOf(range.substring(6).replace("-",""));
+      long length = start + CHUNK_SIZE < videoSize ? CHUNK_SIZE : Math.abs(videoSize - start + CHUNK_SIZE - 1 );
+      long end = Math.min(start + CHUNK_SIZE, videoSize -1);
+      byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID,start,length);
+      for (byte e : fetchFromStore)
+        buffer.appendByte(e);
+      ctx.response()
+        .setStatusCode(206)
+        .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
+        .putHeader("Content-Type", "video/mp4")
+        .putHeader("Accept-Ranges", "bytes")
+        .end(buffer);
     }
   }
 
