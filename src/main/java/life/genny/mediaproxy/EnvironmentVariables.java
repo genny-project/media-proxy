@@ -1,4 +1,4 @@
-package life.genny;
+package life.genny.mediaproxy;
 
 import java.util.Optional;
 

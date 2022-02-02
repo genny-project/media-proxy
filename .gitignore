@@ -1,15 +1,39 @@
-/target/*
-src/main/resources/media-proxy-git.properties
-.classpath
-.project
-.settings/*
-.factorypath
-/file-uploads/*
-/.apt_generated/*
-/.apt_generated_tests/
-/.vertx/*
-/dis/*
-/bin/*
-!.gitignore
+#Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
 
-/target/
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# IntelliJ
+.idea
+*.ipr
+*.iml
+*.iws
+
+# NetBeans
+nb-configuration.xml
+
+# Visual Studio Code
+.vscode
+.factorypath
+
+# OSX
+.DS_Store
+
+# Vim
+*.swp
+*.swo
+
+# patch
+*.orig
+*.rej
+
+# Local environment
+.env
