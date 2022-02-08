@@ -155,19 +155,17 @@ public class Server {
 
   public static void publicFileUploadHandler(RoutingContext ctx) {
       Set<FileUpload> fileUploads = ctx.fileUploads();
-      System.out.println("posted image :: "+fileUploads.size());
+    System.out.println("posted "+fileUploads.size() + " file");
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
     String realm = Minio.extractRealm(tokenFromHeader);
     System.out.println("DEBUG: get realm:" + realm + " from token");
     Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-      System.out.println("on else posted image :: ");
     if(!isAllowed){
+      System.out.println("User not allowed to upload file, reject");
       ctx.response().setStatusCode(401).end();
-    }else {
-      System.out.println("on else posted image :: ");
-      //Set<FileUpload> fileUploads = ctx.fileUploads();
-      //System.out.println("posted image :: "+fileUploads.size());
+    } else {
+      System.out.println("User allowed to upload file.");
       List<Map<String,String>> fileObjects = fileUploads.stream().map(file -> {
         UUID fileUUID = Minio.saveOnStore(file);
         Map<String,String> map = new HashMap<>();
