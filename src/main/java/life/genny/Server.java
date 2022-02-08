@@ -160,7 +160,7 @@ public class Server {
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
     String realm = Minio.extractRealm(tokenFromHeader);
     System.out.println("DEBUG: get realm:" + realm + " from token");
-    System.out.print("DEBUG: get token from header:" + tokenFromHeader);
+    System.out.println("DEBUG: get token from header:" + tokenFromHeader);
     Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
     if(!isAllowed){
       System.out.println("User not allowed to upload file, reject");
