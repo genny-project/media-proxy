@@ -47,11 +47,11 @@ public class Minio {
   public static String getTokenFromHeader(RoutingContext ctx) {
     MultiMap headers = ctx.request().headers();
     String authValue = headers.get("Authorization");
-    System.out.println("DEBUG, authValue:" + authValue);
+//    System.out.println("DEBUG, authValue:" + authValue);
     String[] split = authValue.split(" ");
-    System.out.println("DEBUG, split:" + split);
+//    System.out.println("DEBUG, split:" + split);
     String token = split[1];
-    System.out.println("DEBUG, token:" + token);
+//    System.out.println("DEBUG, token:" + token);
     return token;
   }
 
@@ -205,25 +205,20 @@ public class Minio {
     try {
       boolean isExist = minioClient.bucketExists(EnvironmentVariables.BUCKET_NAME);
       if (isExist) {
-        System.out.println("Bucket already exists.");
+        System.out.println("Bucket " + EnvironmentVariables.BUCKET_NAME +  "already exists.");
       } else {
-        System.out.println("Creating Bucket.");
+        System.out.println("Start creat Bucket:" + EnvironmentVariables.BUCKET_NAME);
         minioClient.makeBucket(EnvironmentVariables.BUCKET_NAME);
-      }
-      try {
-        minioClient.putObject(EnvironmentVariables.BUCKET_NAME, path, inpt);
-      } catch (IOException e) {
-        e.printStackTrace();
+        System.out.println("Finish create Bucket:" + EnvironmentVariables.BUCKET_NAME);
       }
 
+      minioClient.putObject(EnvironmentVariables.BUCKET_NAME, path, inpt);
+      System.out.println("Success, File" + inpt +  " uploaded to bucket with path:" + path);
     } catch (MinioException | InvalidKeyException
         | NoSuchAlgorithmException | IOException
         | XmlPullParserException e) {
-      System.out.println("Error occurred: " + e);
+      System.out.println("Error occurred when upload file to bucket: " + e.getMessage());
       e.printStackTrace();
-
     }
   }
-
-
 }
