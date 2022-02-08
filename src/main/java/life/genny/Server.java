@@ -158,7 +158,8 @@ public class Server {
       System.out.println("posted image :: "+fileUploads.size());
     List<String> roles = TokenIntrospection.setRoles("user");
     String tokenFromHeader = Minio.getTokenFromHeader(ctx);
-    Minio.extractRealm(tokenFromHeader);
+    String realm = Minio.extractRealm(tokenFromHeader);
+    System.out.println("DEBUG: get realm:" + realm + " from token");
     Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
       System.out.println("on else posted image :: ");
     if(!isAllowed){

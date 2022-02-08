@@ -220,6 +220,7 @@ public class Minio {
         | NoSuchAlgorithmException | IOException
         | XmlPullParserException e) {
       System.out.println("Error occurred: " + e);
+      e.printStackTrace();
 
     }
   }
