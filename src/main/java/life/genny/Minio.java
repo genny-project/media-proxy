@@ -30,7 +30,7 @@ import life.genny.qwandautils.KeycloakUtils;
 public class Minio {
 
   private static MinioClient minioClient;
-  private static String REALM = Optional.ofNullable(System.getenv("REALM")).orElse("internmatch");
+  private static String REALM = Optional.ofNullable(System.getenv("PROJECT_REALM")).orElse("internmatch");
   static {
     try {
       minioClient =
