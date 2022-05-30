@@ -116,7 +116,13 @@ public class Server {
         Map<String,String> map = new HashMap<>();
         List<Map<String,String>> list = new ArrayList<>();
         map.put("name", file.fileName());
-        map.put("uuid", fileUUID.toString() );
+        if (fileUUID != null) {
+          map.put("uuid", fileUUID.toString() );
+          System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
+        } else {
+          map.put("uuid", "");
+          System.out.println("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
+        }
         list.add(map);
         return list;
       }).reduce((acc,element)->{
@@ -171,9 +177,16 @@ public class Server {
         UUID fileUUID = Minio.saveOnStore(file);
         Map<String,String> map = new HashMap<>();
         List<Map<String,String>> list = new ArrayList<>();
+
         map.put("name", file.fileName());
-        map.put("uuid", fileUUID.toString() );
-        System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
+        if(fileUUID != null) {
+          map.put("uuid", fileUUID.toString() );
+          System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
+        } else {
+          map.put("uuid", "");
+          System.out.println("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
+        }
+
         list.add(map);
         return list;
       }).reduce((acc,element)->{
