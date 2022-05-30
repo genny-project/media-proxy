@@ -78,19 +78,23 @@ public class Minio {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    uploadFile(REALM.concat("/")+"public",file.uploadedFileName(),randomUUID.toString());
-    uploadFile(REALM.concat("/")+"public",fileInfo.getPath(),randomUUID.toString().concat("-info"));
-    fileInfo.delete();
-    return randomUUID;
 
+    if (uploadFile(REALM.concat("/")+"public",file.uploadedFileName(),randomUUID.toString()) &&
+            uploadFile(REALM.concat("/")+"public",fileInfo.getPath(),randomUUID.toString().concat("-info"))) {
+      fileInfo.delete();
+      return randomUUID;
+    } else {
+      return null;
+    }
   }
 
   public static UUID saveOnStore(FileUpload file,UUID userUUID) {
     UUID randomUUID = UUID.randomUUID();
-    uploadFile(userUUID.toString(), 
-        file.uploadedFileName(),
-        randomUUID.toString());
-    return randomUUID;
+    if (uploadFile(userUUID.toString(), file.uploadedFileName(), randomUUID.toString())) {
+      return randomUUID;
+    } else {
+      return null;
+    }
   }
 
   public static byte[] fetchFromStoreUserDirectory(UUID fileUUID, UUID userUUID) {
@@ -198,8 +202,8 @@ public class Minio {
     }
   }
 
-  public static void uploadFile(String sub,
-      String inpt, String uuid) {
+  public static boolean uploadFile(String sub, String inpt, String uuid) {
+    boolean isSuccess = false;
 
     String path = sub + "/" + "media" + "/" + uuid;
     try {
@@ -213,6 +217,7 @@ public class Minio {
       }
 
       minioClient.putObject(EnvironmentVariables.BUCKET_NAME, path, inpt);
+      isSuccess = true;
       System.out.println("Success, File" + inpt +  " uploaded to bucket with path:" + path);
     } catch (MinioException | InvalidKeyException
         | NoSuchAlgorithmException | IOException
@@ -220,5 +225,6 @@ public class Minio {
       System.out.println("Error occurred when upload file to bucket: " + e.getMessage());
       e.printStackTrace();
     }
+    return isSuccess;
   }
 }
