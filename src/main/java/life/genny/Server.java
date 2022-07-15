@@ -269,7 +269,7 @@ public class Server {
             }
 
             f.delete();
-            if (mimeType.startsWith("video/")) {
+            if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
                 fileName = UUID.randomUUID().toString();
                 System.out.println("##### vDetected Video Type");
                 if (fileName.split("\\.").length == 1) {
