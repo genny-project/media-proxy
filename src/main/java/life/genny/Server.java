@@ -236,46 +236,56 @@ public class Server {
     }
   }
 
-  public static void publicFindFileHandler(RoutingContext ctx) {
-    UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+    public static void publicFindFileHandler(RoutingContext ctx) {
+        UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
 
-    byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
-    String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
-    if(fileName.equals("")) {
-      fileName = fileUUID.toString();
-    }
-    if(fetchFromStore.length == 0) {
-      ctx.response().setStatusCode(404).end();
-
-    }else {
-
-      File f = new File("/tmp/"+ fileName);
-      String mimeType = null;
-      Tika tika = new Tika();
-      Buffer buffer = Buffer.buffer();
-      try {
-        FileUtils.writeByteArrayToFile(f, fetchFromStore);
-        mimeType = tika.detect(f);
-
-        if(APPLICATION_X_MATROSKA.equals(mimeType))
-          mimeType = "video/webm";
-        
-        for(byte e: FileUtils.readFileToByteArray(f)) {
-          buffer.appendByte(e);
+        byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
+        String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+        if (fileName.equals("")) {
+            fileName = fileUUID.toString();
         }
+        if (fetchFromStore.length == 0) {
+            ctx.response().setStatusCode(404).end();
 
-      } catch (IOException e1) {
-        // TODO Auto-generated catch block
-        e1.printStackTrace();
-      }
+        } else {
 
-      f.delete();
-      ctx.response().putHeader("Content-Type", mimeType)
-                    .putHeader("Content-Disposition",
-                        "attachment; filename= ".concat(fileName))
-                    .end(buffer);
+            File f = new File("/tmp/" + fileName);
+            System.out.println("filename: "+ fileName);
+            String mimeType = null;
+            Tika tika = new Tika();
+            Buffer buffer = Buffer.buffer();
+            try {
+                FileUtils.writeByteArrayToFile(f, fetchFromStore);
+
+                mimeType = tika.detect(f);
+                System.out.println("mimeType:"+ mimeType);
+
+                for (byte e : FileUtils.readFileToByteArray(f)) {
+                    buffer.appendByte(e);
+                }
+
+            } catch (IOException e1) {
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+            }
+
+            f.delete();
+
+            if (fileName.split("\\.").length == 1) {
+                if (APPLICATION_X_MATROSKA.equals(mimeType)) {
+                    mimeType = "video/webm";
+                    fileName = UUID.randomUUID().toString() + ".mkv";
+                }
+            } else if (fileName.split("\\.").length > 1 && mimeType.startsWith("video/")) {
+                String[] splitted = fileName.split("\\.");
+                String extension = splitted[splitted.length - 1];
+                fileName = UUID.randomUUID().toString() +"."+ extension;
+            }
+
+            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
+
+        }
     }
-  }
 
   public static void publicDeleteFileHandler(RoutingContext ctx) {
     UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
