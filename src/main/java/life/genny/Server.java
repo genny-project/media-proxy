@@ -270,18 +270,23 @@ public class Server {
 
             f.delete();
             if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                fileName = UUID.randomUUID().toString();
+                String uuid = UUID.randomUUID().toString();
                 System.out.println("##### vDetected Video Type");
                 if (fileName.split("\\.").length == 1) {
                     if (APPLICATION_X_MATROSKA.equals(mimeType)) {
                         System.out.println("##### APPLICATION_X_MATROSKA Detected");
                         mimeType = "video/webm";
-                        fileName = fileName + ".webm";
+                        fileName = uuid + ".webm";
+                    }else{
+                        System.out.println("Cannot detect extension at run time enforcing MP4");
+                        mimeType = "video/mp4";
+                        fileName = uuid + ".mp4";
                     }
                 } else {
+                    System.out.println("#### Extension Found");
                     String[] splitted = fileName.split("\\.");
                     String extension = splitted[splitted.length - 1];
-                    fileName = fileName + "." + extension;
+                    fileName = uuid + "." + extension;
                 }
                 System.out.println("##### Downloaded fileName: "+ fileName);
             }
