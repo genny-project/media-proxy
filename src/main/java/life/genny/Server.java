@@ -2,6 +2,9 @@ package life.genny;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +34,13 @@ import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import io.vertx.rxjava.ext.web.handler.StaticHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
+import ws.schild.jave.Encoder;
+import ws.schild.jave.MultimediaObject;
+import ws.schild.jave.encode.AudioAttributes;
+import ws.schild.jave.encode.EncodingAttributes;
+import ws.schild.jave.encode.VideoAttributes;
+import ws.schild.jave.info.MultimediaInfo;
+import ws.schild.jave.progress.EncoderProgressListener;
 
 public class Server {
 
@@ -224,12 +234,21 @@ public class Server {
             long length = start + CHUNK_SIZE < videoSize ? CHUNK_SIZE : Math.abs(videoSize - start + CHUNK_SIZE - 1);
             long end = Math.min(start + CHUNK_SIZE, videoSize - 1);
             byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, start, length);
+
+            Tika tika = new Tika();
+
+            String mimeType = tika.detect(fetchFromStore);
+
+            if (APPLICATION_X_MATROSKA.equals(mimeType))
+                mimeType = "video/webm";
+
             for (byte e : fetchFromStore)
                 buffer.appendByte(e);
+
             ctx.response()
                     .setStatusCode(206)
                     .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
-                    .putHeader("Content-Type", "video/mp4")
+                    .putHeader("Content-Type", mimeType)
                     .putHeader("Accept-Ranges", "bytes")
                     .end(buffer);
         }
@@ -294,6 +313,90 @@ public class Server {
 
             ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
 
+        }
+    }
+
+    public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
+        UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+        String videoType = ctx.request().getParam("videoType");
+        byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
+        String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+        if (fileName.equals("")) {
+            fileName = fileUUID.toString();
+        }
+        if (fetchFromStore.length == 0) {
+            ctx.response().setStatusCode(404).end();
+        } else {
+            File f = new File("/tmp/" + fileName);
+            String mimeType = null;
+            Tika tika = new Tika();
+            Buffer buffer = Buffer.buffer();
+            try {
+                FileUtils.writeByteArrayToFile(f, fetchFromStore);
+                mimeType = tika.detect(f);
+                for (byte e : FileUtils.readFileToByteArray(f)) {
+                    buffer.appendByte(e);
+                }
+                if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
+                    Instant start = Instant.now();
+                    fileName = UUID.randomUUID().toString();
+                    File target = new File("/tmp/" + fileName + ".mp4");
+                    if (target.exists()) {
+                        target.delete();
+                    }
+                    AudioAttributes audio = new AudioAttributes();
+                    audio.setCodec("eac3");
+                    audio.setBitRate(128000);
+                    audio.setSamplingRate(44100);
+                    audio.setChannels(2);
+                    VideoAttributes video = new VideoAttributes();
+                    video.setCodec("mpeg4");
+                    video.setBitRate(12000000);
+                    video.setFrameRate(30);
+                    EncodingAttributes attrs = new EncodingAttributes();
+
+                    attrs.setOutputFormat(videoType);
+                    attrs.setAudioAttributes(audio);
+                    attrs.setVideoAttributes(video);
+                    Encoder encoder = new Encoder();
+                    encoder.encode(new MultimediaObject(f), target, attrs, new EncoderProgressListener() {
+                        @Override
+                        public void sourceInfo(MultimediaInfo multimediaInfo) {
+
+                        }
+
+                        @Override
+                        public void progress(int i) {
+                            System.out.println("Progress State: " + i);
+                        }
+
+                        @Override
+                        public void message(String s) {
+
+                        }
+                    });
+
+                    Instant end = Instant.now();
+                    Duration timeElapsed = Duration.between(start, end);
+                    System.out.println("Time taken: " + timeElapsed.toMillis() + " milliseconds");
+                    mimeType = tika.detect(target);
+                    byte[] targetByteArray = Files.readAllBytes(target.toPath());
+                    Buffer targetBuffer = Buffer.buffer();
+                    for (byte e : targetByteArray) {
+                        targetBuffer.appendByte(e);
+                    }
+                    buffer = targetBuffer;
+                    fileName += ".mp4";
+                    target.delete();
+                }
+
+            } catch (Exception ex) {
+                System.out.println("Exception: " + ex.getMessage());
+            }
+            System.out.println("fileName: " + fileName);
+            System.out.println("mimeType:" + mimeType);
+            f.delete();
+            ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
         }
     }
 
