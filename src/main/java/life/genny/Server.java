@@ -106,6 +106,9 @@ public class Server {
         router.route(HttpMethod.GET, "/public/video/:fileuuid")
                 .blockingHandler(Server::publicFindVideoHandler);
 
+        router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid")
+                .blockingHandler(Server::publicFindVideoByTypeHandler);
+
         router.route(HttpMethod.DELETE, "/public/:fileuuid")
                 .blockingHandler(Server::publicDeleteFileHandler);
         vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
