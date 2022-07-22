@@ -6,10 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="1383bd58-125a-41f3-b049-c97adf4ccc6a" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.sh" beforeDir="false" afterPath="$PROJECT_DIR$/build.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/MediaVerticle.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/MediaVerticle.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/Minio.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/Minio.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/Server.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/video-streaming-example/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/video-streaming-example/package-lock.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

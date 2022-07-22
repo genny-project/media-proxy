@@ -13,6 +13,7 @@ import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
 import life.genny.utils.BufferUtils;
+import life.genny.utils.StringUtils;
 import life.genny.utils.TemporaryFileStore;
 import life.genny.utils.VideoUtils;
 import org.apache.commons.io.FileUtils;
@@ -295,33 +296,43 @@ public class Server {
             byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
             String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
 
+            Buffer outputBuffer = null;
+            String mimeType = null;
+
             if (fileName.equals("")) {
                 fileName = fileUUID.toString();
             }
 
-            Buffer outputBuffer = null;
             if (fetchFromStore.length == 0) {
                 ctx.response().setStatusCode(404).end();
             } else {
                 File input = TemporaryFileStore.createTemporaryFile(fileName);
                 FileUtils.writeByteArrayToFile(input, fetchFromStore);
-                Tika tika = new Tika();
-                String mimeType = tika.detect(input);
-                System.out.println("#### MinIO file mimeType: " + mimeType);
-                if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                    File target = VideoUtils.convert(input, videoType);
-                    mimeType = tika.detect(target);
-                    System.out.println("#### Converted file mimeType: " + mimeType);
-                    outputBuffer = BufferUtils.fileToBuffer(target);
-                    String newFileName = UUID.randomUUID().toString();
-                    fileName = newFileName + "." + videoType;
-                    target.delete();
+                if (fileName.contains(".mp4")) {
+                    System.out.println("#### Mp4 detected");
+                    outputBuffer = BufferUtils.fileToBuffer(input);
+                    System.out.println("#### Extension Found");
+                    fileName = StringUtils.fileNameToUuid(fileName);
+                } else {
+                    System.out.println("#### Non Mp4 detected");
+                    Tika tika = new Tika();
+                    mimeType = tika.detect(input);
+                    System.out.println("#### MinIO file mimeType: " + mimeType);
+                    if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
+                        File target = VideoUtils.convert(input, videoType);
+                        mimeType = tika.detect(target);
+                        System.out.println("#### Converted file mimeType: " + mimeType);
+                        outputBuffer = BufferUtils.fileToBuffer(target);
+                        String newFileName = UUID.randomUUID().toString();
+                        fileName = newFileName + "." + videoType;
+                        target.delete();
+                    }
                 }
-
                 System.out.println("#### fileName: " + fileName);
                 input.delete();
                 ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(outputBuffer);
             }
+
         } catch (Exception ex) {
             System.out.println("Exception: " + ex.getMessage());
         }
