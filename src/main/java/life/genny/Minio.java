@@ -55,7 +55,7 @@ public class Minio {
     return token;
   }
 
-  public static String extractRealm(String token) {
+  public static String extractRealm(String token) throws Exception{
     JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
     String kcRealmUrl = decodedToken.get("iss").toString();
     String[] split = kcRealmUrl.split("/");
@@ -63,7 +63,7 @@ public class Minio {
     String realm = split[length-1];
     return realm;
   }
-  public static UUID extractUserUUID(String token) {
+  public static UUID extractUserUUID(String token) throws Exception{
     JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
     UUID userUUID = UUID.fromString(decodedToken.get("sub").toString());
     return userUUID;

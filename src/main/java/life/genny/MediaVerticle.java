@@ -1,13 +1,19 @@
 package life.genny;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
 
 public class MediaVerticle extends AbstractVerticle {
-  
-  @Override
-  public void start() {
-    MonoVertx.getInstance().setVertx(vertx);
-    Server.run();
-  }
+
+    @Override
+    public void start() {
+        MonoVertx.getInstance().setVertx(vertx);
+        Server.run();
+    }
+
+    public static void main(String[] args) {
+        Vertx vertx = Vertx.vertx();
+        vertx.deployVerticle(new MediaVerticle());
+    }
 
 }
