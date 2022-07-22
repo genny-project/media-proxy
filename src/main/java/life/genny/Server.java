@@ -220,7 +220,7 @@ public class Server {
             for (byte e : fetchFromStore)
                 buffer.appendByte(e);
 
-            ctx.response().setStatusCode(206).putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize).putHeader("Content-Type", mimeType).putHeader("Accept-Ranges", "bytes").end(buffer);
+            ctx.response().setStatusCode(206).putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize).putHeader("Content-Type", "video/mp4").putHeader("Accept-Ranges", "bytes").end(buffer);
         }
     }
 
