@@ -5,10 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1383bd58-125a-41f3-b049-c97adf4ccc6a" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/MediaVerticle.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/MediaVerticle.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/Minio.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/Minio.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/life/genny/Server.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/life/genny/Server.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -20,7 +18,6 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="jar://$MAVEN_REPOSITORY$/life/genny/genny-verticle-rules/9.13.2/genny-verticle-rules-9.13.2-sources.jar!/life/genny/security/TokenIntrospection.java" root0="SKIP_INSPECTION" />
-    <setting file="file://$PROJECT_DIR$/run.sh" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/java/life/genny/EnvironmentVariables.java" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/java/life/genny/MediaVerticle.java" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/java/life/genny/Minio.java" root0="FORCE_HIGHLIGHTING" />
@@ -49,6 +46,13 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="useMavenConfig" value="true" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
   <component name="ProjectId" id="26Rof9pt6hkJce4GKZ76wvvkkAo" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -76,6 +80,19 @@
       </envs>
       <option name="MAIN_CLASS_NAME" value="life.genny.MediaVerticle" />
       <module name="media-proxy" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="media-proxy" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="media-proxy" />
+      <option name="filePath" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
