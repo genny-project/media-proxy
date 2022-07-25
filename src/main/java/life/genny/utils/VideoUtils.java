@@ -7,6 +7,7 @@ import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import ws.schild.jave.encode.VideoAttributes;
+import ws.schild.jave.encode.enums.X264_PROFILE;
 import ws.schild.jave.info.MultimediaInfo;
 import ws.schild.jave.progress.EncoderProgressListener;
 
@@ -25,13 +26,14 @@ public class VideoUtils {
         File target = TemporaryFileStore.createTemporaryFile(fileName + ".mp4");
 
         AudioAttributes audio = new AudioAttributes();
-        audio.setCodec("eac3");
+        audio.setCodec("aac");
         audio.setBitRate(128000);
         audio.setSamplingRate(44100);
         audio.setChannels(2);
         VideoAttributes video = new VideoAttributes();
-        video.setCodec("mpeg4");
-        video.setBitRate(12000000);
+        video.setCodec("h264");
+        video.setX264Profile(X264_PROFILE.HIGH);
+        video.setBitRate(10000000);
         video.setFrameRate(30);
         EncodingAttributes attrs = new EncodingAttributes();
 

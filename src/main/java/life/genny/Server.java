@@ -206,16 +206,20 @@ public class Server {
         } else {
             Buffer buffer = Buffer.buffer();
             long videoSize = stat.length();
+            System.out.println("#### Video Size: "+ videoSize);
             String range = ctx.request().getHeader("Range");
+            System.out.println("#### Range: "+ range);
             long start = Long.valueOf(range.substring(6).replace("-", ""));
+            System.out.println("#### Start: "+ start);
             long length = start + CHUNK_SIZE < videoSize ? CHUNK_SIZE : Math.abs(videoSize - start + CHUNK_SIZE - 1);
+            System.out.println("#### Length: "+ length);
             long end = Math.min(start + CHUNK_SIZE, videoSize - 1);
+            System.out.println("#### End: "+ length);
             byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, start, length);
-
+            byte[] fetchFirstBit = Minio.streamFromStorePublicDirectory(fileUUID, 0L, length);
             Tika tika = new Tika();
 
-            String mimeType = tika.detect(fetchFromStore);
-
+            String mimeType = tika.detect(fetchFirstBit);
             if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
 
             for (byte e : fetchFromStore)
@@ -224,8 +228,9 @@ public class Server {
             ctx.response()
                     .setStatusCode(206)
                     .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
-//                    .putHeader("Content-Length", String.valueOf(videoSize))
-                    .putHeader("Content-Type", "video/mp4").putHeader("Accept-Ranges", "bytes")
+                    .putHeader("Content-Length", String.valueOf(fetchFromStore.length))
+                    .putHeader("Content-Type", mimeType)
+                    .putHeader("Accept-Ranges", "bytes")
                     .end(buffer);
         }
     }
