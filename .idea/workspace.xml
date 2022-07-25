@@ -91,19 +91,6 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="media-proxy" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
-      <module name="media-proxy" />
-      <option name="filePath" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -130,6 +117,8 @@
       <workItem from="1658209697823" duration="2285000" />
       <workItem from="1658283731232" duration="10604000" />
       <workItem from="1658333092645" duration="12204000" />
+      <workItem from="1658549285754" duration="926000" />
+      <workItem from="1658725811281" duration="851000" />
     </task>
     <servers />
   </component>

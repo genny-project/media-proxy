@@ -224,7 +224,7 @@ public class Server {
             ctx.response()
                     .setStatusCode(206)
                     .putHeader("Content-Range", "bytes " + start + "-" + end + "/" + videoSize)
-                    .putHeader("Content-Length", String.valueOf(videoSize))
+//                    .putHeader("Content-Length", String.valueOf(videoSize))
                     .putHeader("Content-Type", "video/mp4").putHeader("Accept-Ranges", "bytes")
                     .end(buffer);
         }
