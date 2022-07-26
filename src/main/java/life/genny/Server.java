@@ -252,7 +252,7 @@ public class Server {
                     .putHeader(HttpHeaders.KEEP_ALIVE, "timeout=5, max=99")
                     .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
                     .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + fromRange + "-" + toRange + "/" + videoSize)
-                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(fetchFromStore.length))
+                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(rangeLength))
                     .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end(buffer);
