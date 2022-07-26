@@ -155,8 +155,8 @@ public class Server {
             String realm = Minio.extractRealm(tokenFromHeader);
             System.out.println("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-//            Boolean isAllowed = true;
+//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+            Boolean isAllowed = true;
             if (!isAllowed) {
                 System.out.println("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -213,31 +213,28 @@ public class Server {
             long videoSize = stat.length();
             System.out.println("#### Video Size: " + videoSize);
             String range = ctx.request().getHeader("Range");
-            long fromRange = 0;
-            long toRange = 0;
-            long rangeLength = 0;
-            byte[] fetchFromStore = null;
+            long rangeStart = 0;
+            long rangeEnd;
 
-            System.out.println("#### Range: " + range);
+            long fileSize = videoSize;
+            String[] ranges = range.split("-");
+            rangeStart = Long.parseLong(ranges[0].substring(6));
 
-            String[] ranges = range.substring(6).split("-");
-
-            fromRange = Long.valueOf(ranges[0]);
             if (ranges.length > 1) {
-                toRange = Long.valueOf(ranges[1]);
+                rangeEnd = Long.parseLong(ranges[1]);
             } else {
-                toRange = videoSize - 1;
+                rangeEnd = fileSize - 1;
+            }
+            if (fileSize < rangeEnd) {
+                rangeEnd = fileSize - 1;
             }
 
-            if (fromRange > 0) {
-                rangeLength = Math.min(CHUNK_SIZE, toRange - fromRange + 1);
-                fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, fromRange, rangeLength);
-            } else {
-                rangeLength = Math.min(CHUNK_SIZE, videoSize);
-                fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, 0L, rangeLength);
-            }
+            String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
 
-            System.out.println("#### rangeLength: " + rangeLength);
+                byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
+
+
+            System.out.println("#### contentLength: " + contentLength);
             System.out.println("#### ---------- ####");
 
 
@@ -249,10 +246,10 @@ public class Server {
 
             ctx.response()
                     .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
-                    .putHeader(HttpHeaders.KEEP_ALIVE, "timeout=5, max=99")
-                    .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
-                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + fromRange + "-" + toRange + "/" + videoSize)
-                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(rangeLength))
+//                    .putHeader(HttpHeaders.KEEP_ALIVE, "timeout=5, max=99")
+//                    .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
+                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize)
+                    .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
                     .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end(buffer);
