@@ -230,8 +230,8 @@ public class Server {
             }
 
             String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-
-                byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
+            contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
+            byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
 
 
             System.out.println("#### contentLength: " + contentLength);
@@ -313,7 +313,7 @@ public class Server {
             }
 
 
-            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= " .concat(fileName)).end(buffer);
+            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
 
         }
     }
@@ -362,7 +362,7 @@ public class Server {
                 }
                 System.out.println("#### fileName: " + fileName);
                 input.delete();
-                ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= " .concat(fileName)).end(outputBuffer);
+                ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(outputBuffer);
             }
 
         } catch (Exception ex) {
