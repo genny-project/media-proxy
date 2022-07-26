@@ -203,8 +203,6 @@ public class Server {
     }
 
 
-
-
     public static void publicFindVideoHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
@@ -212,40 +210,36 @@ public class Server {
         if (stat.length() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
-            long start = 0;
-            long end = 0;
-            long rangeLength = 0;
             long videoSize = stat.length();
-            System.out.println("#### Video Size: "+ videoSize);
+            System.out.println("#### Video Size: " + videoSize);
             String range = ctx.request().getHeader("Range");
+            long fromRange = 0;
+            long toRange = 0;
+            long rangeLength = 0;
+            byte[] fetchFromStore = null;
 
-            if(range != null){
-                System.out.println("#### Range: "+ range);
+            System.out.println("#### Range: " + range);
 
-                String[] ranges = range.substring(6).split("-");
+            String[] ranges = range.substring(6).split("-");
 
-                if(ranges.length == 1){
-                    start = Long.valueOf(ranges[0]);
-                    System.out.println("#### Range - Start: "+ end);
-                }
-
-                if(ranges.length == 2){
-                    end = Long.valueOf(ranges[1]);
-                    System.out.println("#### Range - End: "+ end);
-                }else{
-                    end = videoSize-1;
-                }
-
-                 rangeLength = Math.min(1024 * 1024L, end - start + 1);
-                System.out.println("#### rangeLength: "+ rangeLength);
-                System.out.println("#### ---------- ####");
-            }else{
-                rangeLength = Math.min(1024 * 1024L, videoSize);
-                System.out.println("#### rangeLength: "+ rangeLength);
+            fromRange = Long.valueOf(ranges[0]);
+            if (ranges.length > 1) {
+                toRange = Long.valueOf(ranges[1]);
+            } else {
+                toRange = videoSize - 1;
             }
 
+            if (fromRange > 0) {
+                rangeLength = Math.min(CHUNK_SIZE, toRange - fromRange + 1);
+                fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, fromRange, rangeLength);
+            } else {
+                rangeLength = Math.min(CHUNK_SIZE, videoSize);
+                fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, 0L, rangeLength);
+            }
 
-            byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, start, rangeLength);
+            System.out.println("#### rangeLength: " + rangeLength);
+            System.out.println("#### ---------- ####");
+
 
             Tika tika = new Tika();
             String mimeType = tika.detect(fetchFromStore);
@@ -257,7 +251,7 @@ public class Server {
                     .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
                     .putHeader(HttpHeaders.KEEP_ALIVE, "timeout=5, max=99")
                     .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
-                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + start + "-" + end + "/" + videoSize)
+                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + fromRange + "-" + toRange + "/" + videoSize)
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(fetchFromStore.length))
                     .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -322,7 +316,7 @@ public class Server {
             }
 
 
-            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
+            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= " .concat(fileName)).end(buffer);
 
         }
     }
@@ -371,7 +365,7 @@ public class Server {
                 }
                 System.out.println("#### fileName: " + fileName);
                 input.delete();
-                ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(outputBuffer);
+                ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= " .concat(fileName)).end(outputBuffer);
             }
 
         } catch (Exception ex) {
