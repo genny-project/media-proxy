@@ -174,8 +174,8 @@ public class Server {
             String realm = Minio.extractRealm(tokenFromHeader);
             System.out.println("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-            Boolean isAllowed = true;
+            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+//            Boolean isAllowed = true;
             if (!isAllowed) {
                 System.out.println("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -231,47 +231,47 @@ public class Server {
         } else {
             long videoSize = stat.length();
             System.out.println("#### Video Size: " + videoSize);
+
             String range = ctx.request().getHeader("Range");
             long rangeStart = 0;
             long rangeEnd;
 
-            long fileSize = videoSize;
             String[] ranges = range.split("-");
+            System.out.println("#### ranges: "+ Arrays.toString(ranges));
             rangeStart = Long.parseLong(ranges[0].substring(6));
 
             if (ranges.length > 1) {
                 rangeEnd = Long.parseLong(ranges[1]);
             } else {
-                rangeEnd = fileSize - 1;
+                rangeEnd = videoSize - 1;
             }
-            if (fileSize < rangeEnd) {
-                rangeEnd = fileSize - 1;
+
+            if (videoSize < rangeEnd) {
+                rangeEnd = videoSize - 1;
             }
+
+            System.out.println("#### rangeStart: "+ rangeStart);
+            System.out.println("#### rangeEnd: "+ rangeEnd);
 
             String contentLength =  String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
+            System.out.println("#### contentLength: " + contentLength);
 
             byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
-
-
-            System.out.println("#### contentLength: " + contentLength);
-            System.out.println("#### ---------- ####");
-
+            byte[] fetchFirstByte = Minio.streamFromStorePublicDirectory(fileUUID, 0L, 1024L);
 
             Tika tika = new Tika();
-            String mimeType = tika.detect(fetchFromStore);
-            if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
+            String mimeType = tika.detect(fetchFirstByte);
+            System.out.println("#### mimeType: "+ mimeType);
 
-            Buffer buffer = Buffer.buffer(fetchFromStore);
+            if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
 
             ctx.response()
                     .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
-//                    .putHeader(HttpHeaders.KEEP_ALIVE, "timeout=5, max=99")
-//                    .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
-                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize)
+                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + videoSize)
                     .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
                     .putHeader(HttpHeaders.CONTENT_TYPE, "video/mp4")
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .end(buffer);
+                    .end(Buffer.buffer(fetchFromStore));
         }
     }
 
