@@ -264,6 +264,7 @@ public class Server {
             System.out.println("#### mimeType: "+ mimeType);
 
             if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
+            if("application/octet-stream".equals(mimeType)) mimeType = "video/mp4"; // enforcing it as mp4 if octet-stream is detected
 
             ctx.response()
                     .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
