@@ -386,6 +386,7 @@ public class Server {
             }
 
         } catch (Exception ex) {
+            ctx.response().setStatusCode(404).end();
             System.out.println("Exception: " + ex.getMessage());
         }
     }
