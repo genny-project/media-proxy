@@ -269,7 +269,7 @@ public class Server {
                     .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
                     .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + videoSize)
                     .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
-                    .putHeader(HttpHeaders.CONTENT_TYPE, "video/mp4")
+                    .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end(Buffer.buffer(fetchFromStore));
         }
