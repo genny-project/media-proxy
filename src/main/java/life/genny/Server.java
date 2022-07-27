@@ -77,7 +77,7 @@ public class Server {
 
         router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid").blockingHandler(Server::publicFindVideoByTypeHandler);
 
-        router.route(HttpMethod.HEAD, "/public/video/:videoType/:fileuuid").blockingHandler(Server::getVideoSize);
+        router.route(HttpMethod.HEAD, "/public/video/:fileuuid").blockingHandler(Server::getVideoSize);
 
         router.route(HttpMethod.DELETE, "/public/:fileuuid").blockingHandler(Server::publicDeleteFileHandler);
         vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
