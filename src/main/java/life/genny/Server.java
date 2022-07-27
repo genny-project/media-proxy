@@ -77,8 +77,27 @@ public class Server {
 
         router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid").blockingHandler(Server::publicFindVideoByTypeHandler);
 
+        router.route(HttpMethod.HEAD, "/public/video/:videoType/:fileuuid").blockingHandler(Server::getVideoSize);
+
         router.route(HttpMethod.DELETE, "/public/:fileuuid").blockingHandler(Server::publicDeleteFileHandler);
         vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
+    }
+
+    public static void getVideoSize(RoutingContext ctx){
+        System.out.println("#### HEAD request for content");
+        UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+        ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+        System.out.println("#### video-name: "+ stat.name());
+        if (stat.length() == 0) {
+            ctx.response().setStatusCode(404).end();
+        } else {
+            long videoSize = stat.length();
+            System.out.println("#### videoSize: "+ videoSize);
+            ctx.response()
+                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
+                    .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
+                    .end();
+        }
     }
 
 
@@ -229,8 +248,8 @@ public class Server {
                 rangeEnd = fileSize - 1;
             }
 
-            String contentLength = String.valueOf((rangeEnd - rangeStart) + 1);
-            contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
+            String contentLength =  String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
+
             byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
 
 
