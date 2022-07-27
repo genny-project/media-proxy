@@ -269,7 +269,7 @@ public class Server {
 //                    .putHeader(HttpHeaders.CONNECTION, "Keep-Alive")
                     .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + fileSize)
                     .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
-                    .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
+                    .putHeader(HttpHeaders.CONTENT_TYPE, "video/mp4")
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end(buffer);
         }
