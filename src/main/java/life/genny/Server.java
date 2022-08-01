@@ -63,23 +63,23 @@ public class Server {
          */
         router.route().handler(BodyHandler.create().setDeleteUploadedFilesOnEnd(true));
 
-        router.route(HttpMethod.POST, "/media").blockingHandler(Server::userFileUploadHandler);
+        router.route(HttpMethod.POST, "/media").blockingHandler(Server::userFileUploadHandler,false);
 
-        router.route(HttpMethod.GET, "/media/:fileuuid").blockingHandler(Server::userFindFileHandler);
+        router.route(HttpMethod.GET, "/media/:fileuuid").blockingHandler(Server::userFindFileHandler, false);
 
-        router.route(HttpMethod.POST, "/public").blockingHandler(Server::publicFileUploadHandler);
+        router.route(HttpMethod.POST, "/public").blockingHandler(Server::publicFileUploadHandler, false);
 
-        router.route(HttpMethod.GET, "/public/:fileuuid").blockingHandler(Server::publicFindFileHandler);
+        router.route(HttpMethod.GET, "/public/:fileuuid").blockingHandler(Server::publicFindFileHandler, false);
 
-        router.route(HttpMethod.GET, "/public/:fileuuid/name").blockingHandler(Server::publicFindFileNameHandler);
+        router.route(HttpMethod.GET, "/public/:fileuuid/name").blockingHandler(Server::publicFindFileNameHandler, false);
 
-        router.route(HttpMethod.GET, "/public/video/:fileuuid").blockingHandler(Server::publicFindVideoHandler);
+        router.route(HttpMethod.GET, "/public/video/:fileuuid").blockingHandler(Server::publicFindVideoHandler, false);
 
-        router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid").blockingHandler(Server::publicFindVideoByTypeHandler);
+        router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid").blockingHandler(Server::publicFindVideoByTypeHandler, false);
 
-        router.route(HttpMethod.HEAD, "/public/video/:fileuuid").blockingHandler(Server::getVideoSize);
+        router.route(HttpMethod.HEAD, "/public/video/:fileuuid").blockingHandler(Server::getVideoSize, false);
 
-        router.route(HttpMethod.DELETE, "/public/:fileuuid").blockingHandler(Server::publicDeleteFileHandler);
+        router.route(HttpMethod.DELETE, "/public/:fileuuid").blockingHandler(Server::publicDeleteFileHandler, false);
         vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
     }
 
@@ -223,6 +223,7 @@ public class Server {
 
 
     public static void publicFindVideoHandler(RoutingContext ctx) {
+        System.out.println("#### Handler Thread is: "+ Thread.currentThread().getName());
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
         System.out.println(stat);
@@ -339,6 +340,7 @@ public class Server {
     }
 
     public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
+        System.out.println("#### Handler Thread is: "+ Thread.currentThread().getName());
         try {
             String fileUuid = ctx.request().getParam("fileUuid");
             System.out.println("#### Request uuid: " + fileUuid);
