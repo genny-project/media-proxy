@@ -1,6 +1,6 @@
 package life.genny.utils;
 
-import life.genny.qwandautils.JsonUtils;
+import org.apache.logging.log4j.Logger;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.EncoderException;
 import ws.schild.jave.MultimediaObject;
@@ -18,9 +18,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class VideoUtils {
-
+    protected static final Logger log = org.apache.logging.log4j.LogManager.getLogger(VideoUtils.class);
     public static File convert(File input, String videoType) throws IOException, EncoderException {
-        System.out.println("#### Starting video conversion");
+        log.debug("#### Starting video conversion");
         Instant start = Instant.now();
         String fileName = UUID.randomUUID().toString();
         File target = TemporaryFileStore.createTemporaryFile(fileName + ".mp4");
@@ -47,14 +47,14 @@ public class VideoUtils {
         encoder.encode(new MultimediaObject(input), target, attrs, new EncoderProgressListener() {
             @Override
             public void sourceInfo(MultimediaInfo multimediaInfo) {
-                System.out.println("#### Source Duration:" + multimediaInfo.getDuration());
-                System.out.println("#### Source Format: " + multimediaInfo.getFormat());
-                System.out.println("#### Source Encoder: " + multimediaInfo.getMetadata().get("encoder"));
+                log.debug("#### Source Duration:" + multimediaInfo.getDuration());
+                log.debug("#### Source Format: " + multimediaInfo.getFormat());
+                log.debug("#### Source Encoder: " + multimediaInfo.getMetadata().get("encoder"));
             }
 
             @Override
             public void progress(int i) {
-                System.out.println("#### Progress State: " + i);
+                log.debug("#### Progress State: " + i);
             }
 
             @Override
@@ -64,8 +64,8 @@ public class VideoUtils {
 
         Instant end = Instant.now();
         Duration timeElapsed = Duration.between(start, end);
-        System.out.println("#### Time taken to convert: " + timeElapsed.toMillis() + " milliseconds");
-        System.out.println("#### Ended video conversion");
+        log.debug("#### Time taken to convert: " + timeElapsed.toMillis() + " milliseconds");
+        log.debug("#### Ended video conversion");
         return target;
     }
 }
