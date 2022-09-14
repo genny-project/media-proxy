@@ -82,15 +82,15 @@ public class Server {
     }
 
     public static void getVideoSize(RoutingContext ctx){
-        log.debug("#### HEAD request for content");
+        System.out.println("#### HEAD request for content");
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
-        log.debug("#### video-name: "+ stat.name());
+        System.out.println("#### video-name: "+ stat.name());
         if (stat.length() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
             long videoSize = stat.length();
-            log.debug("#### videoSize: "+ videoSize);
+            System.out.println("#### videoSize: "+ videoSize);
             ctx.response()
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -116,10 +116,10 @@ public class Server {
                     map.put("name", file.fileName());
                     if (fileUUID != null) {
                         map.put("uuid", fileUUID.toString());
-                        log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
+                        System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
                     } else {
                         map.put("uuid", "");
-                        log.debug("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
+                        System.out.println("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
                     }
                     list.add(map);
                     return list;
@@ -166,19 +166,19 @@ public class Server {
     public static void publicFileUploadHandler(RoutingContext ctx) {
         try {
             Set<FileUpload> fileUploads = ctx.fileUploads();
-            log.debug("posted " + fileUploads.size() + " file");
+            System.out.println("posted " + fileUploads.size() + " file");
             List<String> roles = TokenIntrospection.setRoles("user");
             String tokenFromHeader = Minio.getTokenFromHeader(ctx);
             String realm = Minio.extractRealm(tokenFromHeader);
-            log.debug("DEBUG: get realm:" + realm + " from token");
+            System.out.println("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
             Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
 //            Boolean isAllowed = true;
             if (!isAllowed) {
-                log.debug("User not allowed to upload file, reject");
+                System.out.println("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
             } else {
-                log.debug("User allowed to upload file.");
+                System.out.println("User allowed to upload file.");
                 List<Map<String, String>> fileObjects = fileUploads.stream().map(file -> {
                     UUID fileUUID = Minio.saveOnStore(file);
                     Map<String, String> map = new HashMap<>();
@@ -187,10 +187,10 @@ public class Server {
                     map.put("name", file.fileName());
                     if (fileUUID != null) {
                         map.put("uuid", fileUUID.toString());
-                        log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
+                        System.out.println("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
                     } else {
                         map.put("uuid", "");
-                        log.debug("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
+                        System.out.println("File NOT uploaded, name:" + file.fileName() + ", uuid set to empty string");
                     }
 
                     list.add(map);
@@ -221,22 +221,22 @@ public class Server {
 
 
     public static void publicFindVideoHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: "+ Thread.currentThread().getName());
+        System.out.println("#### Handler Thread is: "+ Thread.currentThread().getName());
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
-        log.debug(stat);
+        System.out.println(stat);
         if (stat.length() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
             long videoSize = stat.length();
-            log.debug("#### Video Size: " + videoSize);
+            System.out.println("#### Video Size: " + videoSize);
 
             String range = ctx.request().getHeader("Range");
             long rangeStart = 0;
             long rangeEnd;
 
             String[] ranges = range.split("-");
-            log.debug("#### ranges: "+ Arrays.toString(ranges));
+            System.out.println("#### ranges: "+ Arrays.toString(ranges));
             rangeStart = Long.parseLong(ranges[0].substring(6));
 
             if (ranges.length > 1) {
@@ -249,18 +249,18 @@ public class Server {
                 rangeEnd = videoSize - 1;
             }
 
-            log.debug("#### rangeStart: "+ rangeStart);
-            log.debug("#### rangeEnd: "+ rangeEnd);
+            System.out.println("#### rangeStart: "+ rangeStart);
+            System.out.println("#### rangeEnd: "+ rangeEnd);
 
             String contentLength =  String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
-            log.debug("#### contentLength: " + contentLength);
+            System.out.println("#### contentLength: " + contentLength);
 
             byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
             byte[] fetchFirstByte = Minio.streamFromStorePublicDirectory(fileUUID, 0L, 1024L);
 
             Tika tika = new Tika();
             String mimeType = tika.detect(fetchFirstByte);
-            log.debug("#### mimeType: "+ mimeType);
+            System.out.println("#### mimeType: "+ mimeType);
 
             if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
             if("application/octet-stream".equals(mimeType)) mimeType = "video/mp4"; // enforcing it as mp4 if octet-stream is detected
@@ -289,7 +289,7 @@ public class Server {
         } else {
 
             File f = new File("/tmp/" + fileName);
-            log.debug("filename: " + fileName);
+            System.out.println("filename: " + fileName);
             String mimeType = null;
             Tika tika = new Tika();
             Buffer buffer = Buffer.buffer();
@@ -297,7 +297,7 @@ public class Server {
                 FileUtils.writeByteArrayToFile(f, fetchFromStore);
 
                 mimeType = tika.detect(f);
-                log.debug("mimeType:" + mimeType);
+                System.out.println("mimeType:" + mimeType);
 
                 for (byte e : FileUtils.readFileToByteArray(f)) {
                     buffer.appendByte(e);
@@ -311,24 +311,24 @@ public class Server {
             f.delete();
             if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
                 String uuid = UUID.randomUUID().toString();
-                log.debug("##### vDetected Video Type");
+                System.out.println("##### vDetected Video Type");
                 if (fileName.split("\\.").length == 1) {
                     if (APPLICATION_X_MATROSKA.equals(mimeType)) {
-                        log.debug("##### APPLICATION_X_MATROSKA Detected");
+                        System.out.println("##### APPLICATION_X_MATROSKA Detected");
                         mimeType = "video/webm";
                         fileName = uuid + ".webm";
                     } else {
-                        log.debug("Cannot detect extension at run time enforcing MP4");
+                        System.out.println("Cannot detect extension at run time enforcing MP4");
                         mimeType = "video/mp4";
                         fileName = uuid + ".mp4";
                     }
                 } else {
-                    log.debug("#### Extension Found");
+                    System.out.println("#### Extension Found");
                     String[] splitted = fileName.split("\\.");
                     String extension = splitted[splitted.length - 1];
                     fileName = uuid + "." + extension;
                 }
-                log.debug("##### Downloaded fileName: " + fileName);
+                System.out.println("##### Downloaded fileName: " + fileName);
             }
 
 
@@ -338,10 +338,10 @@ public class Server {
     }
 
     public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: "+ Thread.currentThread().getName());
+        System.out.println("#### Handler Thread is: "+ Thread.currentThread().getName());
         try {
             String fileUuid = ctx.request().getParam("fileUuid");
-            log.debug("#### Request uuid: " + fileUuid);
+            System.out.println("#### Request uuid: " + fileUuid);
             UUID fileUUID = UUID.fromString(fileUuid);
             String videoType = ctx.request().getParam("videoType");
 
@@ -361,26 +361,26 @@ public class Server {
                 File input = TemporaryFileStore.createTemporaryFile(fileName);
                 FileUtils.writeByteArrayToFile(input, fetchFromStore);
                 if (fileName.contains(".mp4")) {
-                    log.debug("#### Mp4 detected");
+                    System.out.println("#### Mp4 detected");
                     outputBuffer = BufferUtils.fileToBuffer(input);
-                    log.debug("#### Extension Found");
+                    System.out.println("#### Extension Found");
                     fileName = StringUtils.fileNameToUuid(fileName);
                 } else {
-                    log.debug("#### Non Mp4 detected");
+                    System.out.println("#### Non Mp4 detected");
                     Tika tika = new Tika();
                     mimeType = tika.detect(input);
-                    log.debug("#### MinIO file mimeType: " + mimeType);
+                    System.out.println("#### MinIO file mimeType: " + mimeType);
                     if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
                         File target = VideoUtils.convert(input, videoType);
                         mimeType = tika.detect(target);
-                        log.debug("#### Converted file mimeType: " + mimeType);
+                        System.out.println("#### Converted file mimeType: " + mimeType);
                         outputBuffer = BufferUtils.fileToBuffer(target);
                         String newFileName = UUID.randomUUID().toString();
                         fileName = newFileName + "." + videoType;
                         target.delete();
                     }
                 }
-                log.debug("#### fileName: " + fileName);
+                System.out.println("#### fileName: " + fileName);
                 input.delete();
                 ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(outputBuffer);
             }
