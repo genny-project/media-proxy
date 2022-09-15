@@ -1,232 +1,233 @@
 package life.genny;
 
 import com.amazonaws.util.IOUtils;
+import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
+import io.minio.GetObjectResponse;
+import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
-import io.minio.ObjectStat;
-import io.minio.errors.ErrorResponseException;
-import io.minio.errors.InsufficientDataException;
-import io.minio.errors.InternalException;
-import io.minio.errors.InvalidArgumentException;
-import io.minio.errors.InvalidBucketNameException;
-import io.minio.errors.InvalidEndpointException;
-import io.minio.errors.InvalidPortException;
-import io.minio.errors.MinioException;
-import io.minio.errors.NoResponseException;
+import io.minio.RemoveObjectArgs;
+import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
+import io.minio.UploadObjectArgs;
 import io.vertx.rxjava.core.MultiMap;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.RoutingContext;
 import life.genny.qwandautils.KeycloakUtils;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
-import org.xmlpull.v1.XmlPullParserException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import java.util.UUID;
 
 public class Minio {
-  protected static final Logger log = org.apache.logging.log4j.LogManager.getLogger(Minio.class);
-  private static MinioClient minioClient;
-  private static String REALM = Optional.ofNullable(System.getenv("REALM")).orElse("internmatch");
-  static {
-    try {
-      minioClient =
-          new MinioClient(EnvironmentVariables.MINIO_SERVER_URL,
-              EnvironmentVariables.MINIO_ACCESS_KEY,
-              EnvironmentVariables.MINIO_PRIVATE_KEY);
-    } catch (InvalidEndpointException e) {
-      e.printStackTrace();
-    } catch (InvalidPortException e) {
-      e.printStackTrace();
-    }
-  }
+    private static final Logger log = LoggerFactory.getLogger(Minio.class);
+    private static MinioClient minioClient;
+    private static String REALM = Optional.ofNullable(System.getenv("REALM")).orElse("internmatch");
 
-  public static String getTokenFromHeader(RoutingContext ctx) {
-    MultiMap headers = ctx.request().headers();
-    String authValue = headers.get("Authorization");
-//    log.debug("DEBUG, authValue:" + authValue);
-    String[] split = authValue.split(" ");
-//    log.debug("DEBUG, split:" + split);
-    String token = split[1];
-//    log.debug("DEBUG, token:" + token);
-    return token;
-  }
-
-  public static String extractRealm(String token) throws Exception{
-    JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
-    String kcRealmUrl = decodedToken.get("iss").toString();
-    String[] split = kcRealmUrl.split("/");
-    int length = split.length;
-    String realm = split[length-1];
-    return realm;
-  }
-  public static UUID extractUserUUID(String token) throws Exception{
-    JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
-    UUID userUUID = UUID.fromString(decodedToken.get("sub").toString());
-    return userUUID;
-  }
-
-  public static UUID saveOnStore(FileUpload file) {
-    UUID randomUUID = UUID.randomUUID();
-    String fileInfoName = "file-uploads/".concat(randomUUID.toString().concat("-info"));
-    File fileInfo = new File(fileInfoName);
-    try(FileWriter myWriter = new FileWriter(fileInfo.getPath());) {
-      myWriter.write(file.fileName());
-    } catch (IOException e) {
-      e.printStackTrace();
+    static {
+        try {
+            minioClient = MinioClient
+                .builder()
+                .endpoint(EnvironmentVariables.MINIO_SERVER_URL)
+                .credentials(EnvironmentVariables.MINIO_ACCESS_KEY, EnvironmentVariables.MINIO_PRIVATE_KEY)
+                .build();
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+        }
     }
 
-    if (uploadFile(REALM.concat("/")+"public",file.uploadedFileName(),randomUUID.toString()) &&
-            uploadFile(REALM.concat("/")+"public",fileInfo.getPath(),randomUUID.toString().concat("-info"))) {
-      fileInfo.delete();
-      return randomUUID;
-    } else {
-      return null;
+    public static String getTokenFromHeader(RoutingContext ctx) {
+        MultiMap headers = ctx.request().headers();
+        String authValue = headers.get("Authorization");
+        String[] split = authValue.split(" ");
+        String token = split[1];
+        return token;
     }
-  }
 
-  public static UUID saveOnStore(FileUpload file,UUID userUUID) {
-    UUID randomUUID = UUID.randomUUID();
-    if (uploadFile(userUUID.toString(), file.uploadedFileName(), randomUUID.toString())) {
-      return randomUUID;
-    } else {
-      return null;
+    public static String extractRealm(String token) throws Exception {
+        JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
+        String kcRealmUrl = decodedToken.get("iss").toString();
+        String[] split = kcRealmUrl.split("/");
+        int length = split.length;
+        String realm = split[length - 1];
+        return realm;
     }
-  }
 
-  public static byte[] fetchFromStoreUserDirectory(UUID fileUUID, UUID userUUID) {
-    try {
-      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-          userUUID.toString() + "/media/" + fileUUID.toString());
-      byte[] byteArray = IOUtils.toByteArray(object);
-      return byteArray;
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | InvalidArgumentException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
-      return new byte[] {};
+    public static UUID extractUserUUID(String token) throws Exception {
+        JSONObject decodedToken = KeycloakUtils.getDecodedToken(token);
+        UUID userUUID = UUID.fromString(decodedToken.get("sub").toString());
+        return userUUID;
     }
-  }
 
-  public static ObjectStat fetchStatFromStorePublicDirectory(UUID fileUUID) {
-    try {
-      ObjectStat object = minioClient.statObject(EnvironmentVariables.BUCKET_NAME,
-           REALM + "/" + 
-           "public" + "/" + 
-           "media"  + "/" + 
-           fileUUID.toString());
-      return object;
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
-      return null;
+    public static UUID saveOnStore(FileUpload file) {
+        UUID randomUUID = UUID.randomUUID();
+        String fileInfoName = "file-uploads/".concat(randomUUID.toString().concat("-info"));
+        File fileInfo = new File(fileInfoName);
+        try (FileWriter myWriter = new FileWriter(fileInfo.getPath());) {
+            myWriter.write(file.fileName());
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+        }
+        Boolean isFileUploaded = uploadFile(REALM.concat("/") + "public", file.uploadedFileName(), randomUUID.toString());
+        Boolean isFileInfoUploaded = uploadFile(REALM.concat("/") + "public", fileInfo.getPath(), randomUUID.toString().concat("-info"));
+        if (isFileUploaded && isFileInfoUploaded) {
+            fileInfo.delete();
+            return randomUUID;
+        } else {
+            return null;
+        }
     }
-  }
-  public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
-    try {
-      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-           REALM + "/" + 
-           "public" + "/" + 
-           "media"  + "/" + 
-           fileUUID.toString().concat("-info"));
-      byte[] byteArray = IOUtils.toByteArray(object);
-      return new String(byteArray);
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | InvalidArgumentException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
-      return "";
-    }
-  }
 
-  public static byte[] streamFromStorePublicDirectory(UUID fileUUID,Long start, Long end) {
-    try {
-      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-           REALM + "/" + 
-           "public" + "/" + 
-           "media"  + "/" + 
-           fileUUID.toString(),start,end);
-      byte[] byteArray = IOUtils.toByteArray(object);
-      return byteArray;
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | InvalidArgumentException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
-      return new byte[] {};
+    public static UUID saveOnStore(FileUpload file, UUID userUUID) {
+        UUID randomUUID = UUID.randomUUID();
+        Boolean isFileUploaded = uploadFile(userUUID.toString(), file.uploadedFileName(), randomUUID.toString());
+        if (isFileUploaded) {
+            return randomUUID;
+        } else {
+            return null;
+        }
     }
-  }
-  public static byte[] fetchFromStorePublicDirectory(UUID fileUUID) {
-    try {
-      InputStream object = minioClient.getObject(EnvironmentVariables.BUCKET_NAME,
-           REALM + "/" + 
-           "public" + "/" + 
-           "media"  + "/" + 
-           fileUUID.toString());
-      byte[] byteArray = IOUtils.toByteArray(object);
-      return byteArray;
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | InvalidArgumentException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
-      return new byte[] {};
+
+    public static byte[] fetchFromStoreUserDirectory(UUID fileUUID, UUID userUUID) {
+        try {
+            String fullPath = REALM + "/" + userUUID.toString() + "/" + "media" + "/" + fileUUID.toString().concat("-info");
+            GetObjectArgs getObjectArgs = GetObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .build();
+            GetObjectResponse getObjectResponse = minioClient.getObject(getObjectArgs);
+            byte[] byteArray = IOUtils.toByteArray(getObjectResponse);
+            return byteArray;
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return new byte[]{};
+        }
     }
-  }
 
-  public static void deleteFromStorePublicDirectory(UUID fileUUID) {
-    try {
-      minioClient.removeObject(EnvironmentVariables.BUCKET_NAME,
-           REALM + "/" + 
-           "public" + "/" + 
-           "media"  + "/" +
-           fileUUID.toString());
-    } catch (InvalidKeyException | InvalidBucketNameException
-        | NoSuchAlgorithmException | InsufficientDataException
-        | NoResponseException | ErrorResponseException
-        | InternalException | InvalidArgumentException | IOException
-        | XmlPullParserException e) {
-      e.printStackTrace();
+    public static StatObjectResponse fetchStatFromStorePublicDirectory(UUID fileUUID) {
+        try {
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString();
+            StatObjectArgs statObjectArgs = StatObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .build();
+            StatObjectResponse statObjectResponse = minioClient.statObject(statObjectArgs);
+            return statObjectResponse;
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return null;
+        }
     }
-  }
 
-  public static boolean uploadFile(String sub, String inpt, String uuid) {
-    boolean isSuccess = false;
-
-    String path = sub + "/" + "media" + "/" + uuid;
-    try {
-      boolean isExist = minioClient.bucketExists(EnvironmentVariables.BUCKET_NAME);
-      if (isExist) {
-        log.debug("Bucket " + EnvironmentVariables.BUCKET_NAME +  "already exists.");
-      } else {
-        log.debug("Start creat Bucket:" + EnvironmentVariables.BUCKET_NAME);
-        minioClient.makeBucket(EnvironmentVariables.BUCKET_NAME);
-        log.debug("Finish create Bucket:" + EnvironmentVariables.BUCKET_NAME);
-      }
-
-      minioClient.putObject(EnvironmentVariables.BUCKET_NAME, path, inpt);
-      isSuccess = true;
-      log.debug("Success, File" + inpt +  " uploaded to bucket with path:" + path);
-    } catch (MinioException | InvalidKeyException
-        | NoSuchAlgorithmException | IOException
-        | XmlPullParserException e) {
-      log.debug("Error occurred when upload file to bucket: " + e.getMessage());
-      e.printStackTrace();
+    public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
+        try {
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString().concat("-info");
+            GetObjectArgs getObjectArgs = GetObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .build();
+            GetObjectResponse getObjectResponse = minioClient.getObject(getObjectArgs);
+            byte[] byteArray = IOUtils.toByteArray(getObjectResponse);
+            return new String(byteArray);
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return "";
+        }
     }
-    return isSuccess;
-  }
+
+    public static byte[] streamFromStorePublicDirectory(UUID fileUUID, Long start, Long end) {
+        try {
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString();
+            GetObjectArgs getObjectArgs = GetObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .offset(start)
+                .length(end)
+                .build();
+            GetObjectResponse getObjectResponse = minioClient.getObject(getObjectArgs);
+            byte[] byteArray = IOUtils.toByteArray(getObjectResponse);
+            return byteArray;
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return new byte[]{};
+        }
+    }
+
+    public static byte[] fetchFromStorePublicDirectory(UUID fileUUID) {
+        try {
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString();
+            GetObjectArgs getObjectArgs = GetObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .build();
+            GetObjectResponse getObjectResponse = minioClient.getObject(getObjectArgs);
+            byte[] byteArray = IOUtils.toByteArray(getObjectResponse);
+            return byteArray;
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return new byte[]{};
+        }
+    }
+
+    public static void deleteFromStorePublicDirectory(UUID fileUUID) {
+        try {
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString();
+            RemoveObjectArgs removeObjectArgs = RemoveObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(fullPath)
+                .build();
+            minioClient.removeObject(removeObjectArgs);
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+        }
+    }
+
+    public static boolean uploadFile(String sub, String inpt, String uuid) {
+        boolean isSuccess = false;
+
+        String path = sub + "/" + "media" + "/" + uuid;
+        try {
+            BucketExistsArgs bucketExistsArgs = BucketExistsArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .build();
+
+            boolean isExist = minioClient.bucketExists(bucketExistsArgs);
+            if (isExist) {
+                log.debug("Bucket " + EnvironmentVariables.BUCKET_NAME + "already exists.");
+            } else {
+                log.debug("Start creat Bucket:" + EnvironmentVariables.BUCKET_NAME);
+                MakeBucketArgs makeBucketArgs = MakeBucketArgs.builder()
+                    .bucket(EnvironmentVariables.BUCKET_NAME)
+                    .build();
+                minioClient.makeBucket(makeBucketArgs);
+                log.debug("Finish create Bucket:" + EnvironmentVariables.BUCKET_NAME);
+            }
+
+            UploadObjectArgs uploadObjectArgs = UploadObjectArgs
+                .builder()
+                .bucket(EnvironmentVariables.BUCKET_NAME)
+                .object(path)
+                .filename(inpt)
+                .build();
+
+            minioClient.uploadObject(uploadObjectArgs);
+
+            isSuccess = true;
+            log.debug("Success, File" + inpt + " uploaded to bucket with path:" + path);
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+        }
+        return isSuccess;
+    }
 }

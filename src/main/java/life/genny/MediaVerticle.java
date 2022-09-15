@@ -17,9 +17,9 @@ public class MediaVerticle extends AbstractVerticle {
     public static void main(String[] args) {
         Vertx vertx = Vertx.vertx();
         vertx.deployVerticle(new MediaVerticle(), new DeploymentOptions()
-                .setWorker(false)
+                .setWorker(true)
                 .setInstances(1)
-                .setWorkerPoolSize(40) // Default is 20
+                .setWorkerPoolSize(100) // Default is 20
         );
 
     }
