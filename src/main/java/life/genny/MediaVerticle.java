@@ -3,11 +3,12 @@ package life.genny;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MediaVerticle extends AbstractVerticle {
 
-    protected static final Logger log = org.apache.logging.log4j.LogManager.getLogger(MediaVerticle.class);
+    private static final Logger log = LoggerFactory.getLogger(MediaVerticle.class);
     @Override
     public void start() {
         MonoVertx.getInstance().setVertx(vertx);

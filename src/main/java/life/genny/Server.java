@@ -47,37 +47,75 @@ public class Server {
     private static final String CONTENT_RANGE = "Content-Range";
 
     public static CorsHandler corsHandler() {
-        return CorsHandler.create("*").allowedHeader("*").allowedMethod(HttpMethod.GET).allowedMethod(HttpMethod.POST).allowedMethod(HttpMethod.DELETE).allowedMethod(HttpMethod.OPTIONS).allowedHeader(X_PINGARUNER).allowedHeader(CONTENT_TYPE).allowedHeader(X_REQUESTED_WITH).allowedHeader(ACCESS_CONTROL_ALLOW_ORIGIN).allowedHeader(X_TOTAL_COUNT).allowedHeader(CONNECTION).exposedHeader(CONTENT_RANGE);
+        return CorsHandler
+                .create("*")
+                .allowedHeader("*")
+                .allowedMethod(HttpMethod.GET)
+                .allowedMethod(HttpMethod.POST)
+                .allowedMethod(HttpMethod.DELETE)
+                .allowedMethod(HttpMethod.OPTIONS)
+                .allowedHeader(X_PINGARUNER)
+                .allowedHeader(CONTENT_TYPE)
+                .allowedHeader(X_REQUESTED_WITH)
+                .allowedHeader(ACCESS_CONTROL_ALLOW_ORIGIN)
+                .allowedHeader(X_TOTAL_COUNT)
+                .allowedHeader(CONNECTION)
+                .exposedHeader(CONTENT_RANGE);
     }
 
     public static void run() {
         Vertx vertx = Vertx.newInstance(MonoVertx.getInstance().getVertx());
         Router router = Router.router(vertx);
         router.route().handler(corsHandler());
+
         /*
          * setBodyLimit expected a long that defines the number of bytes so a file of 100 kilobytes should
          * be written as 100000L
          */
-        router.route().handler(BodyHandler.create().setDeleteUploadedFilesOnEnd(true));
+        router
+            .route()
+            .handler(BodyHandler.create().setDeleteUploadedFilesOnEnd(true));
 
-        router.route(HttpMethod.POST, "/media").blockingHandler(Server::userFileUploadHandler,false);
+        router
+            .route(HttpMethod.POST, "/media")
+            .blockingHandler(Server::userFileUploadHandler,false);
 
-        router.route(HttpMethod.GET, "/media/:fileuuid").blockingHandler(Server::userFindFileHandler, false);
+        router
+            .route(HttpMethod.GET, "/media/:fileuuid")
+            .blockingHandler(Server::userFindFileHandler, false);
 
-        router.route(HttpMethod.POST, "/public").blockingHandler(Server::publicFileUploadHandler, false);
+        router
+            .route(HttpMethod.POST, "/public")
+            .blockingHandler(Server::publicFileUploadHandler, false);
 
-        router.route(HttpMethod.GET, "/public/:fileuuid").blockingHandler(Server::publicFindFileHandler, false);
+        router
+            .route(HttpMethod.GET, "/public/:fileuuid")
+            .blockingHandler(Server::publicFindFileHandler, false);
 
-        router.route(HttpMethod.GET, "/public/:fileuuid/name").blockingHandler(Server::publicFindFileNameHandler, false);
+        router
+            .route(HttpMethod.GET, "/public/:fileuuid/name")
+            .blockingHandler(Server::publicFindFileNameHandler, false);
 
-        router.route(HttpMethod.GET, "/public/video/:fileuuid").blockingHandler(Server::publicFindVideoHandler, false);
+        router
+            .route(HttpMethod.GET, "/public/video/:fileuuid")
+            .blockingHandler(Server::publicFindVideoHandler, false);
 
-        router.route(HttpMethod.GET, "/public/video/:videoType/:fileuuid").blockingHandler(Server::publicFindVideoByTypeHandler, false);
+        router
+            .route(HttpMethod.GET, "/public/video/:videoType/:fileuuid")
+            .blockingHandler(Server::publicFindVideoByTypeHandler, false);
 
-        router.route(HttpMethod.HEAD, "/public/video/:fileuuid").blockingHandler(Server::getVideoSize, false);
+        router
+            .route(HttpMethod.HEAD, "/public/video/:fileuuid")
+            .blockingHandler(Server::getVideoSize, false);
 
-        router.route(HttpMethod.DELETE, "/public/:fileuuid").blockingHandler(Server::publicDeleteFileHandler, false);
-        vertx.createHttpServer().requestHandler(router::accept).listen(serverPort);
+        router
+            .route(HttpMethod.DELETE, "/public/:fileuuid")
+            .blockingHandler(Server::publicDeleteFileHandler, false);
+
+        vertx
+            .createHttpServer()
+            .requestHandler(router::accept)
+            .listen(serverPort);
     }
 
     public static void getVideoSize(RoutingContext ctx){
@@ -169,8 +207,7 @@ public class Server {
             String realm = Minio.extractRealm(tokenFromHeader);
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-            Boolean isAllowed = true;
+            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
