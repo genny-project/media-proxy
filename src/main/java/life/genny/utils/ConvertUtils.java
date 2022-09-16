@@ -9,15 +9,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ConvertUtils {
     private static final Logger log = LoggerFactory.getLogger(ConvertUtils.class);
 
-    public static UUID saveWithMultipleQualities(FileUpload fileUpload) {
+    public static void saveWithMultipleQualities(UUID uuid, FileUpload fileUpload) {
         try {
-            // Save original format
-            UUID uuid = Minio.saveOnStore(fileUpload);
-            log.debug("#### Original saved");
             String fileUUID = uuid.toString();
             String mp4Video720FileName = fileUUID + VideoConstants.suffix720p;
             String mp4Video360FileName = fileUUID + VideoConstants.suffix360p;
@@ -33,10 +32,8 @@ public class ConvertUtils {
             target720.delete();
             log.debug("#### Saved to 720p quality");
             input.delete();
-            return uuid;
         } catch (Exception ex) {
             log.error("Exception: " + ex.getMessage());
-            return null;
         }
     }
 

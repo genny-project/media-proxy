@@ -213,8 +213,8 @@ public class Server {
             String realm = Minio.extractRealm(tokenFromHeader);
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-//            Boolean isAllowed = true;
+//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+            Boolean isAllowed = true;
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -227,7 +227,8 @@ public class Server {
                     try {
                         String mimeType = tika.detect(input);
                         if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                            fileUUID = ConvertUtils.saveWithMultipleQualities(file);
+                            fileUUID = Minio.saveOnStore(file);
+                            ConvertUtils.saveWithMultipleQualities(fileUUID, file);
                         } else {
                             fileUUID = Minio.saveOnStore(file);
                         }
