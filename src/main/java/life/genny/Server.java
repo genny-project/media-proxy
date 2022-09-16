@@ -11,10 +11,12 @@ import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
 import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
+import life.genny.constants.VideoConstants;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.security.TokenIntrospection;
 import life.genny.utils.BufferUtils;
-import life.genny.utils.StringUtils;
+import life.genny.utils.ConvertUtils;
+import life.genny.utils.QualityUtils;
 import life.genny.utils.TemporaryFileStore;
 import life.genny.utils.VideoUtils;
 import org.apache.commons.io.FileUtils;
@@ -73,59 +75,63 @@ public class Server {
          * be written as 100000L
          */
         router
-            .route()
-            .handler(BodyHandler.create().setDeleteUploadedFilesOnEnd(true));
+                .route()
+                .handler(BodyHandler.create().setDeleteUploadedFilesOnEnd(true));
 
         router
-            .route(HttpMethod.POST, "/media")
-            .blockingHandler(Server::userFileUploadHandler,false);
+                .route(HttpMethod.POST, "/media")
+                .blockingHandler(Server::userFileUploadHandler, false);
 
         router
-            .route(HttpMethod.GET, "/media/:fileuuid")
-            .blockingHandler(Server::userFindFileHandler, false);
+                .route(HttpMethod.GET, "/media/:fileuuid")
+                .blockingHandler(Server::userFindFileHandler, false);
 
         router
-            .route(HttpMethod.POST, "/public")
-            .blockingHandler(Server::publicFileUploadHandler, false);
+                .route(HttpMethod.POST, "/public")
+                .blockingHandler(Server::publicFileUploadHandler, false);
 
         router
-            .route(HttpMethod.GET, "/public/:fileuuid")
-            .blockingHandler(Server::publicFindFileHandler, false);
+                .route(HttpMethod.GET, "/public/:fileuuid")
+                .blockingHandler(Server::publicFindFileHandler, false);
 
         router
-            .route(HttpMethod.GET, "/public/:fileuuid/name")
-            .blockingHandler(Server::publicFindFileNameHandler, false);
+                .route(HttpMethod.GET, "/public/:fileuuid/name")
+                .blockingHandler(Server::publicFindFileNameHandler, false);
 
         router
-            .route(HttpMethod.GET, "/public/video/:fileuuid")
-            .blockingHandler(Server::publicFindVideoHandler, false);
+                .route(HttpMethod.GET, "/public/video/:fileuuid")
+                .blockingHandler(Server::publicFindVideoHandler, false);
 
         router
-            .route(HttpMethod.GET, "/public/video/:videoType/:fileuuid")
-            .blockingHandler(Server::publicFindVideoByTypeHandler, false);
+                .route(HttpMethod.GET, "/public/video/mp4/:quality/:fileuuid")
+                .blockingHandler(Server::publicFindVideoByTypeHandler, false);
 
         router
-            .route(HttpMethod.HEAD, "/public/video/:fileuuid")
-            .blockingHandler(Server::getVideoSize, false);
+                .route(HttpMethod.HEAD, "/public/video/:fileuuid")
+                .blockingHandler(Server::getVideoSize, false);
 
         router
-            .route(HttpMethod.DELETE, "/public/:fileuuid")
-            .blockingHandler(Server::publicDeleteFileHandler, false);
+                .route(HttpMethod.DELETE, "/public/:fileuuid")
+                .blockingHandler(Server::publicDeleteFileHandler, false);
+
+        router
+                .route(HttpMethod.GET, "/public/convert/:fileuuid")
+                .blockingHandler(Server::publicConvertToMultipleQualities, false);
 
         vertx
-            .createHttpServer()
-            .requestHandler(router::accept)
-            .listen(serverPort);
+                .createHttpServer()
+                .requestHandler(router::accept)
+                .listen(serverPort);
     }
 
-    public static void getVideoSize(RoutingContext ctx){
+    public static void getVideoSize(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         StatObjectResponse stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
             long videoSize = stat.size();
-            log.debug("#### videoSize: "+ videoSize);
+            log.debug("#### videoSize: " + videoSize);
             ctx.response()
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -208,13 +214,27 @@ public class Server {
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
             Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+//            Boolean isAllowed = true;
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
             } else {
                 log.debug("User allowed to upload file.");
                 List<Map<String, String>> fileObjects = fileUploads.stream().map(file -> {
-                    UUID fileUUID = Minio.saveOnStore(file);
+                    File input = new File(file.uploadedFileName());
+                    Tika tika = new Tika();
+                    UUID fileUUID = null;
+                    try {
+                        String mimeType = tika.detect(input);
+                        if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
+                            fileUUID = ConvertUtils.saveWithMultipleQualities(file);
+                        } else {
+                            fileUUID = Minio.saveOnStore(file);
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
                     Map<String, String> map = new HashMap<>();
                     List<Map<String, String>> list = new ArrayList<>();
 
@@ -255,9 +275,9 @@ public class Server {
 
 
     public static void publicFindVideoHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: "+ Thread.currentThread().getName());
-        UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-        StatObjectResponse stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+        log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
+        String fileUUID = ctx.request().getParam("fileuuid");
+        StatObjectResponse stat = Minio.fetchStatFromStorePublicDirectory(fileUUID + "-mp4-360p");
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
@@ -269,7 +289,7 @@ public class Server {
             long rangeEnd;
 
             String[] ranges = range.split("-");
-            log.debug("#### ranges: "+ Arrays.toString(ranges));
+            log.debug("#### ranges: " + Arrays.toString(ranges));
             rangeStart = Long.parseLong(ranges[0].substring(6));
 
             if (ranges.length > 1) {
@@ -282,29 +302,25 @@ public class Server {
                 rangeEnd = videoSize - 1;
             }
 
-            log.debug("#### rangeStart: "+ rangeStart);
-            log.debug("#### rangeEnd: "+ rangeEnd);
+            log.debug("#### rangeStart: " + rangeStart);
+            log.debug("#### rangeEnd: " + rangeEnd);
 
-            String contentLength =  String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
+            String contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
             log.debug("#### contentLength: " + contentLength);
 
-            byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID, rangeStart, Long.valueOf(contentLength));
-            byte[] fetchFirstByte = Minio.streamFromStorePublicDirectory(fileUUID, 0L, 1024L);
-
-            Tika tika = new Tika();
-            String mimeType = tika.detect(fetchFirstByte);
-            log.debug("#### mimeType: "+ mimeType);
-
-            if (APPLICATION_X_MATROSKA.equals(mimeType)) mimeType = "video/webm";
-            if("application/octet-stream".equals(mimeType)) mimeType = "video/mp4"; // enforcing it as mp4 if octet-stream is detected
-
-            ctx.response()
-                    .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
-                    .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + videoSize)
-                    .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
-                    .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
-                    .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .end(Buffer.buffer(fetchFromStore));
+            byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID + VideoConstants.suffix360p, rangeStart, Long.valueOf(contentLength));
+            if (fetchFromStore.length == 0) {
+                log.debug("#### Video not found");
+                ctx.response().setStatusCode(404).end();
+            } else {
+                ctx.response()
+                        .setStatusCode(HttpStatus.SC_PARTIAL_CONTENT)
+                        .putHeader(HttpHeaders.CONTENT_RANGE, "bytes " + rangeStart + "-" + rangeEnd + "/" + videoSize)
+                        .putHeader(HttpHeaders.CONTENT_LENGTH, contentLength)
+                        .putHeader(HttpHeaders.CONTENT_TYPE, "video/mp4")
+                        .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
+                        .end(Buffer.buffer(fetchFromStore));
+            }
         }
     }
 
@@ -371,56 +387,69 @@ public class Server {
     }
 
     public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: "+ Thread.currentThread().getName());
-        try {
-            String fileUuid = ctx.request().getParam("fileUuid");
-            log.debug("#### Request uuid: " + fileUuid);
-            UUID fileUUID = UUID.fromString(fileUuid);
-            String videoType = ctx.request().getParam("videoType");
+        log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
 
-            byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
-            String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+        try {
+            String fileUUID = ctx.request().getParam("fileUUID");
+            log.debug("#### Request uuid: " + fileUUID);
+            String quality = ctx.request().getParam("quality");
+
+            String mp4Video720FileName = fileUUID + VideoConstants.suffix720p;
+            String mp4Video360FileName = fileUUID + VideoConstants.suffix360p;
+
+            byte[] fetchFromStore = null;
+
+            if (quality.equals("360")) {
+                fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video360FileName);
+            } else if (quality.equals("720")) {
+                fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video720FileName);
+            } else {
+                log.debug("#### Video not found");
+                ctx.response().setStatusCode(404).end();
+            }
 
             Buffer outputBuffer = null;
-            String mimeType = null;
 
-            if (fileName.equals("")) {
-                fileName = fileUUID.toString();
-            }
-
-            if (fetchFromStore.length == 0) {
-                ctx.response().setStatusCode(404).end();
-            } else {
-                File input = TemporaryFileStore.createTemporaryFile(fileName);
+            if (fetchFromStore.length != 0) {
+                File input = TemporaryFileStore.createTemporaryFile(fileUUID);
                 FileUtils.writeByteArrayToFile(input, fetchFromStore);
-                if (fileName.contains(".mp4")) {
-                    log.debug("#### Mp4 detected");
-                    outputBuffer = BufferUtils.fileToBuffer(input);
-                    log.debug("#### Extension Found");
-                    fileName = StringUtils.fileNameToUuid(fileName);
-                } else {
-                    log.debug("#### Non Mp4 detected");
-                    Tika tika = new Tika();
-                    mimeType = tika.detect(input);
-                    log.debug("#### MinIO file mimeType: " + mimeType);
-                    if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                        File target = VideoUtils.convert(input, videoType);
-                        mimeType = tika.detect(target);
-                        log.debug("#### Converted file mimeType: " + mimeType);
-                        outputBuffer = BufferUtils.fileToBuffer(target);
-                        String newFileName = UUID.randomUUID().toString();
-                        fileName = newFileName + "." + videoType;
-                        target.delete();
-                    }
-                }
-                log.debug("#### fileName: " + fileName);
+                outputBuffer = BufferUtils.fileToBuffer(input);
                 input.delete();
-                ctx.response().putHeader("Content-Type", mimeType).putHeader("Access-Control-Expose-Headers", "Content-Disposition").putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(outputBuffer);
+            } else {
+                ctx.response().setStatusCode(404).end();
             }
+
+            ctx
+                    .response()
+                    .putHeader("Content-Type", "video/mp4")
+                    .putHeader("Access-Control-Expose-Headers", "Content-Disposition")
+                    .putHeader("Content-Disposition", "attachment; filename= ".concat(fileUUID).concat(".mp4"))
+                    .end(outputBuffer);
 
         } catch (Exception ex) {
             ctx.response().setStatusCode(404).end();
             log.error("Exception: " + ex.getMessage());
+        }
+    }
+
+    public static void publicConvertToMultipleQualities(RoutingContext ctx) {
+        try {
+            String fileUuid = ctx.request().getParam("fileUuid");
+            byte[] originalVideoByteArray = Minio.fetchFromStorePublicDirectory(fileUuid);
+
+            if (originalVideoByteArray.length == 0) {
+                log.debug("#### Video not found");
+                ctx.response().setStatusCode(404).end();
+            } else {
+                log.debug("#### Video found");
+                log.debug("#### Converting started");
+                ConvertUtils.convert(fileUuid, originalVideoByteArray);
+                log.debug("#### Converting ended");
+                ctx.response().setStatusCode(200).end();
+            }
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            ctx.response().setStatusCode(500).end();
         }
     }
 

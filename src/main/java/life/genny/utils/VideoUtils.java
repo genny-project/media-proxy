@@ -10,6 +10,7 @@ import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import ws.schild.jave.encode.VideoAttributes;
 import ws.schild.jave.encode.enums.X264_PROFILE;
+import ws.schild.jave.filters.ScaleFilter;
 import ws.schild.jave.info.MultimediaInfo;
 import ws.schild.jave.progress.EncoderProgressListener;
 
@@ -21,10 +22,9 @@ import java.util.UUID;
 
 public class VideoUtils {
     private static Logger log = LoggerFactory.getLogger(VideoUtils.class);
-    public static File convert(File input, String videoType) throws IOException, EncoderException {
+    public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
         log.debug("#### Starting video conversion");
         Instant start = Instant.now();
-        String fileName = UUID.randomUUID().toString();
         File target = TemporaryFileStore.createTemporaryFile(fileName + ".mp4");
 
         AudioAttributes audio = new AudioAttributes();
@@ -35,8 +35,7 @@ public class VideoUtils {
         VideoAttributes video = new VideoAttributes();
         video.setCodec("h264");
         video.setX264Profile(X264_PROFILE.BASELINE);
-        video.setBitRate(10000000);
-        video.setPixelFormat("yuv420p");
+        video.setBitRate(videoBitrate);
         video.setFrameRate(30);
         video.setFaststart(true);
         EncodingAttributes attrs = new EncodingAttributes();
