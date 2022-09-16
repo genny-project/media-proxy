@@ -400,9 +400,14 @@ public class Server {
             byte[] fetchFromStore = null;
 
             if (quality.equals("360")) {
+                log.debug("#### Fetching 360p quality for: "+ fileUUID);
                 fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video360FileName);
             } else if (quality.equals("720")) {
+                log.debug("#### Fetching 720p quality for: "+ fileUUID);
                 fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video720FileName);
+            } else if (quality.equals("original")) {
+                log.debug("#### Fetching original quality for: "+ fileUUID);
+                fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
             } else {
                 log.debug("#### Video not found");
                 ctx.response().setStatusCode(404).end();
