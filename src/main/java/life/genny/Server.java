@@ -213,8 +213,8 @@ public class Server {
             String realm = Minio.extractRealm(tokenFromHeader);
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-            Boolean isAllowed = true;
+            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+//            Boolean isAllowed = true;
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -445,17 +445,26 @@ public class Server {
 
             if (originalVideoByteArray.length == 0) {
                 log.debug("#### Video not found");
-                ctx.response().setStatusCode(404).end();
+                ctx
+                    .response()
+                    .setStatusCode(404)
+                    .end("Failure::Video Not Found");
             } else {
                 log.debug("#### Video found");
                 log.debug("#### Converting started");
                 ConvertUtils.convert(fileUuid, originalVideoByteArray);
                 log.debug("#### Converting ended");
-                ctx.response().setStatusCode(200).end();
+                ctx
+                    .response()
+                    .setStatusCode(200)
+                    .end("Success");
             }
         } catch (Exception ex) {
             log.error("Exception: " + ex.getMessage());
-            ctx.response().setStatusCode(500).end();
+            ctx
+                .response()
+                .setStatusCode(500)
+                .end("Failure::Error Occurred");
         }
     }
 
