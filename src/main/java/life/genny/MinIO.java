@@ -82,6 +82,25 @@ public class MinIO {
         }
     }
 
+    public static UUID saveOnStore(FileUpload file, String forceExtension) {
+        UUID randomUUID = UUID.randomUUID();
+        String fileInfoName = "file-uploads/".concat(randomUUID.toString().concat("-info"));
+        File fileInfo = new File(fileInfoName);
+        try (FileWriter myWriter = new FileWriter(fileInfo.getPath());) {
+            myWriter.write(file.fileName());
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+        }
+        Boolean isFileUploaded = uploadFile(REALM.concat("/") + "public", file.uploadedFileName(), randomUUID.toString().concat(forceExtension));
+        Boolean isFileInfoUploaded = uploadFile(REALM.concat("/") + "public", fileInfo.getPath(), randomUUID.toString().concat(forceExtension).concat("-info"));
+        if (isFileUploaded && isFileInfoUploaded) {
+            fileInfo.delete();
+            return randomUUID;
+        } else {
+            return null;
+        }
+    }
+
     public static String saveOnStore(String fileName, File file) {
         Boolean isFileUploaded = uploadFile(REALM.concat("/") + "public", file.getPath(), fileName);
         if (isFileUploaded) {
@@ -139,8 +158,12 @@ public class MinIO {
     }
 
     public static String fetchInfoFromStorePublicDirectory(UUID fileUUID) {
+        return fetchInfoFromStorePublicDirectory(fileUUID.toString());
+    }
+
+    public static String fetchInfoFromStorePublicDirectory(String fileUUID) {
         try {
-            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.toString().concat("-info");
+            String fullPath = REALM + "/" + "public" + "/" + "media" + "/" + fileUUID.concat("-info");
             GetObjectArgs getObjectArgs = GetObjectArgs
                     .builder()
                     .bucket(EnvironmentVariables.BUCKET_NAME)

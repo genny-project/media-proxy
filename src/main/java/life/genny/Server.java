@@ -21,12 +21,14 @@ import life.genny.utils.TemporaryFileStore;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.tika.Tika;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Server {
     private static final Logger log = LoggerFactory.getLogger(Server.class);
@@ -220,15 +222,31 @@ public class Server {
             } else {
                 log.debug("User allowed to upload file.");
                 List<Map<String, String>> fileObjects = fileUploads.stream().map(file -> {
+                    String extension = "";
+                    log.debug("File name:" + file.fileName());
                     File input = new File(file.uploadedFileName());
                     Tika tika = new Tika();
                     UUID fileUUID = null;
-                    ResponseWrapper responseWrapper = null;
+                    Map<String, String> map = new HashMap<>();
                     try {
+
                         String mimeType = tika.detect(input);
                         if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                            fileUUID = MinIO.saveOnStore(file);
-                            responseWrapper = VideoQualityConverter.convert(fileUUID, file);
+
+                            if (APPLICATION_X_MATROSKA.equals(mimeType)) {
+                                extension = ".webm";
+                                fileUUID = MinIO.saveOnStore(file, extension);
+                            } else {
+                                String[] fileSplit = file.fileName().split("\\.");
+                                log.debug("#### fileSplit: " + Arrays.asList(fileSplit));
+                                if (fileSplit.length > 0) {
+                                    extension = "." + fileSplit[fileSplit.length - 1];
+                                    fileUUID = MinIO.saveOnStore(file, extension);
+                                } else {
+                                    fileUUID = MinIO.saveOnStore(file);
+                                }
+                            }
+                            ResponseWrapper responseWrapper = VideoQualityConverter.convert(fileUUID.toString().concat(extension), file);
                         } else {
                             fileUUID = MinIO.saveOnStore(file);
                         }
@@ -236,13 +254,13 @@ public class Server {
                         throw new RuntimeException(e);
                     }
 
-                    Map<String, String> map = new HashMap<>();
+
                     List<Map<String, String>> list = new ArrayList<>();
 
                     map.put("name", file.fileName());
                     if (fileUUID != null) {
-                        map.put("uuid", fileUUID.toString());
-                        map.put("conversion", JsonUtils.toJson(responseWrapper));
+                        map.put("uuid", fileUUID.toString().concat(extension));
+
                         log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
                     } else {
                         map.put("uuid", "");
@@ -250,6 +268,7 @@ public class Server {
                     }
 
                     list.add(map);
+
                     return list;
                 }).reduce((acc, element) -> {
                     acc.addAll(element);
@@ -262,6 +281,7 @@ public class Server {
             }
         } catch (Exception ex) {
             log.error("Exception : " + ex.getMessage());
+            ctx.response().setStatusCode(401).end();
         }
     }
 
@@ -279,7 +299,8 @@ public class Server {
     public static void publicFindVideoHandler(RoutingContext ctx) {
         log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
         String fileUUID = ctx.request().getParam("fileuuid");
-        StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID + "-mp4-360p");
+        String fileName = fileUUID + VideoConstants.suffix360p + ".mp4";
+        StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileName);
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
@@ -310,7 +331,8 @@ public class Server {
             String contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
             log.debug("#### contentLength: " + contentLength);
 
-            byte[] fetchFromStore = MinIO.streamFromStorePublicDirectory(fileUUID + VideoConstants.suffix360p, rangeStart, Long.valueOf(contentLength));
+            log.debug("#### fileName: " + fileName);
+            byte[] fetchFromStore = MinIO.streamFromStorePublicDirectory(fileName, rangeStart, Long.valueOf(contentLength));
             if (fetchFromStore.length == 0) {
                 log.debug("#### Video not found");
                 ctx.response().setStatusCode(404).end();
@@ -395,21 +417,37 @@ public class Server {
             String fileUUID = ctx.request().getParam("fileUUID");
             log.debug("#### Request uuid: " + fileUUID);
             String quality = ctx.request().getParam("quality");
-
-            String mp4Video720FileName = fileUUID + VideoConstants.suffix720p;
-            String mp4Video360FileName = fileUUID + VideoConstants.suffix360p;
+            UUID uuid = UUID.randomUUID();
+            String fileName = "";
+            String mp4Video720FileName = fileUUID + VideoConstants.suffix720p + ".mp4";
+            String mp4Video360FileName = fileUUID + VideoConstants.suffix360p + ".mp4";
 
             byte[] fetchFromStore = null;
 
             if (quality.equals("360")) {
-                log.debug("#### Fetching 360p quality for: "+ fileUUID);
+                log.debug("#### Fetching 360p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video360FileName);
+                fileName = uuid.toString() + ".mp4";
             } else if (quality.equals("720")) {
-                log.debug("#### Fetching 720p quality for: "+ fileUUID);
+                log.debug("#### Fetching 720p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video720FileName);
+                fileName = uuid.toString() + ".mp4";
             } else if (quality.equals("original")) {
-                log.debug("#### Fetching original quality for: "+ fileUUID);
+                log.debug("#### Fetching original quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(fileUUID);
+                Tika tika = new Tika();
+                String mimeType = tika.detect(fetchFromStore);
+                if (APPLICATION_X_MATROSKA.equals(mimeType)) {
+                    fileName = uuid.toString() + "." + "webm";
+                } else {
+                    String realName = MinIO.fetchInfoFromStorePublicDirectory(fileUUID);
+                    String[] splittedRealName = realName.split("\\.");
+                    if (splittedRealName.length > 0) {
+                        fileName = uuid.toString() + "." + splittedRealName[splittedRealName.length - 1];
+                    } else {
+                        fileName = uuid.toString();
+                    }
+                }
             } else {
                 log.debug("#### Video not found");
                 ctx.response().setStatusCode(404).end();
@@ -418,7 +456,7 @@ public class Server {
             Buffer outputBuffer = null;
 
             if (fetchFromStore.length != 0) {
-                File input = TemporaryFileStore.createTemporaryFile(fileUUID);
+                File input = TemporaryFileStore.createTemporaryFile(fileName);
                 FileUtils.writeByteArrayToFile(input, fetchFromStore);
                 outputBuffer = BufferUtils.fileToBuffer(input);
                 input.delete();
@@ -430,7 +468,7 @@ public class Server {
                     .response()
                     .putHeader("Content-Type", "video/mp4")
                     .putHeader("Access-Control-Expose-Headers", "Content-Disposition")
-                    .putHeader("Content-Disposition", "attachment; filename= ".concat(fileUUID).concat(".mp4"))
+                    .putHeader("Content-Disposition", "attachment; filename= ".concat(fileName))
                     .end(outputBuffer);
 
         } catch (Exception ex) {
@@ -447,25 +485,25 @@ public class Server {
             if (originalVideoByteArray.length == 0) {
                 log.debug("#### Video not found");
                 ctx
-                    .response()
-                    .setStatusCode(404)
-                    .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Not Found: "+ fileUuid)));
+                        .response()
+                        .setStatusCode(404)
+                        .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Not Found: " + fileUuid)));
             } else {
                 log.debug("#### Video found");
                 log.debug("#### Converting started");
                 ResponseWrapper response = VideoQualityConverter.convert(fileUuid, originalVideoByteArray);
                 log.debug("#### Converting ended");
                 ctx
-                    .response()
-                    .setStatusCode(200)
-                    .end(JsonUtils.toJson(response));
+                        .response()
+                        .setStatusCode(200)
+                        .end(JsonUtils.toJson(response));
             }
         } catch (Exception ex) {
             log.error("Exception: " + ex.getMessage());
             ctx
-                .response()
-                .setStatusCode(500)
-                .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Conversion Failed for : "+ fileUuid)));
+                    .response()
+                    .setStatusCode(500)
+                    .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Conversion Failed for : " + fileUuid)));
         }
     }
 

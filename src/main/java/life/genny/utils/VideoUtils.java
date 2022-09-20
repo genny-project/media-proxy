@@ -25,7 +25,7 @@ public class VideoUtils {
     public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
         log.debug("#### Starting video conversion");
         Instant start = Instant.now();
-        File target = TemporaryFileStore.createTemporaryFile(fileName + ".mp4");
+        File target = TemporaryFileStore.createTemporaryFile(fileName);
 
         AudioAttributes audio = new AudioAttributes();
         audio.setCodec("aac");

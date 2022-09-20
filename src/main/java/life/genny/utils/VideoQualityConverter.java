@@ -20,19 +20,26 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 
 public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
+    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
 
-    private static final ExecutorService executors = Executors.newFixedThreadPool(100, new ThreadFactory() {
-        @Override
-        public Thread newThread(@NotNull Runnable r) {
-            Thread thread =  new Thread(r);
-            thread.setName("videoconverter-"+thread.getName().toLowerCase());
-            return thread;
+    private static Thread createThreadFactory(Runnable runnable){
+        Thread thread =  new Thread(runnable);
+        thread.setName("videoconverter-"+thread.getName().toLowerCase());
+        return thread;
+    }
+
+    public static ResponseWrapper convert(String uuid, FileUpload fileUpload) {
+        try {
+            byte[] inputByteData = Files.readAllBytes(Paths.get(fileUpload.uploadedFileName()));
+            return convert(uuid.toString(), inputByteData);
+        } catch (Exception ex) {
+            log.error("Exception: " + ex.getMessage());
+            return new ResponseWrapper().description("Failure").success(false);
         }
-    });
+    }
 
     public static ResponseWrapper convert(UUID uuid, FileUpload fileUpload) {
         try {
@@ -83,9 +90,9 @@ public class VideoQualityConverter {
     public static Boolean convert(File input, String fileName, Integer bitRate) {
 
         try {
-            File target = VideoUtils.convert(fileName, input, "mp4", bitRate);
+            File target = VideoUtils.convert(fileName+".mp4", input, "mp4", bitRate);
             log.debug("#### Converted: " + fileName);
-            MinIO.saveOnStore(fileName, target);
+            MinIO.saveOnStore(fileName+".mp4", target);
             log.debug("#### Saved: " + fileName);
             target.delete();
             return true;

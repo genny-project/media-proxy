@@ -19,6 +19,10 @@ public class VideoConversionResponse implements Serializable {
         return this;
     }
 
+    public String getVideoId() {
+        return videoId;
+    }
+
     public Map<String, Boolean> getQualities() {
         return qualities;
     }
