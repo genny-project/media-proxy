@@ -13,12 +13,11 @@ import io.vertx.rxjava.ext.web.handler.BodyHandler;
 import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.constants.VideoConstants;
 import life.genny.qwandautils.JsonUtils;
+import life.genny.response.ResponseWrapper;
 import life.genny.security.TokenIntrospection;
 import life.genny.utils.BufferUtils;
-import life.genny.utils.ConvertUtils;
-import life.genny.utils.QualityUtils;
+import life.genny.utils.VideoQualityConverter;
 import life.genny.utils.TemporaryFileStore;
-import life.genny.utils.VideoUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.tika.Tika;
@@ -114,9 +113,9 @@ public class Server {
                 .route(HttpMethod.DELETE, "/public/:fileuuid")
                 .blockingHandler(Server::publicDeleteFileHandler, false);
 
-        router
-                .route(HttpMethod.GET, "/public/convert/:fileuuid")
-                .blockingHandler(Server::publicConvertToMultipleQualities, false);
+//        router
+//                .route(HttpMethod.GET, "/public/convert/:fileuuid")
+//                .blockingHandler(Server::publicConvertToMultipleQualities, false);
 
         vertx
                 .createHttpServer()
@@ -126,7 +125,7 @@ public class Server {
 
     public static void getVideoSize(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-        StatObjectResponse stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+        StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID);
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
@@ -143,15 +142,15 @@ public class Server {
     public static void userFileUploadHandler(RoutingContext ctx) {
         try {
             List<String> roles = TokenIntrospection.setRoles("user");
-            String tokenFromHeader = Minio.getTokenFromHeader(ctx);
+            String tokenFromHeader = MinIO.getTokenFromHeader(ctx);
             Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
             if (!isAllowed) {
                 ctx.response().setStatusCode(401).end();
             } else {
                 Set<FileUpload> fileUploads = ctx.fileUploads();
-                UUID userUUID = Minio.extractUserUUID(tokenFromHeader);
+                UUID userUUID = MinIO.extractUserUUID(tokenFromHeader);
                 List<Map<String, String>> fileObjects = fileUploads.stream().map(file -> {
-                    UUID fileUUID = Minio.saveOnStore(file, userUUID);
+                    UUID fileUUID = MinIO.saveOnStore(file, userUUID);
                     Map<String, String> map = new HashMap<>();
                     List<Map<String, String>> list = new ArrayList<>();
                     map.put("name", file.fileName());
@@ -181,14 +180,14 @@ public class Server {
     public static void userFindFileHandler(RoutingContext ctx) {
         try {
             List<String> roles = TokenIntrospection.setRoles("user");
-            String tokenFromHeader = Minio.getTokenFromHeader(ctx);
+            String tokenFromHeader = MinIO.getTokenFromHeader(ctx);
             Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
             if (!isAllowed) {
                 ctx.response().setStatusCode(401).end();
             } else {
                 UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-                UUID userUUID = Minio.extractUserUUID(tokenFromHeader);
-                byte[] fetchFromStore = Minio.fetchFromStoreUserDirectory(fileUUID, userUUID);
+                UUID userUUID = MinIO.extractUserUUID(tokenFromHeader);
+                byte[] fetchFromStore = MinIO.fetchFromStoreUserDirectory(fileUUID, userUUID);
                 if (fetchFromStore.length == 0) {
                     ctx.response().setStatusCode(404).end();
                 } else {
@@ -209,12 +208,12 @@ public class Server {
             Set<FileUpload> fileUploads = ctx.fileUploads();
             log.debug("posted " + fileUploads.size() + " file");
             List<String> roles = TokenIntrospection.setRoles("user");
-            String tokenFromHeader = Minio.getTokenFromHeader(ctx);
-            String realm = Minio.extractRealm(tokenFromHeader);
+            String tokenFromHeader = MinIO.getTokenFromHeader(ctx);
+            String realm = MinIO.extractRealm(tokenFromHeader);
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-//            Boolean isAllowed = true;
+//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+            Boolean isAllowed = true;
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -224,13 +223,14 @@ public class Server {
                     File input = new File(file.uploadedFileName());
                     Tika tika = new Tika();
                     UUID fileUUID = null;
+                    ResponseWrapper responseWrapper = null;
                     try {
                         String mimeType = tika.detect(input);
                         if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
-                            fileUUID = Minio.saveOnStore(file);
-                            ConvertUtils.saveWithMultipleQualities(fileUUID, file);
+                            fileUUID = MinIO.saveOnStore(file);
+                            responseWrapper = VideoQualityConverter.convert(fileUUID, file);
                         } else {
-                            fileUUID = Minio.saveOnStore(file);
+                            fileUUID = MinIO.saveOnStore(file);
                         }
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -242,6 +242,7 @@ public class Server {
                     map.put("name", file.fileName());
                     if (fileUUID != null) {
                         map.put("uuid", fileUUID.toString());
+                        map.put("conversion", JsonUtils.toJson(responseWrapper));
                         log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
                     } else {
                         map.put("uuid", "");
@@ -266,7 +267,7 @@ public class Server {
 
     public static void publicFindFileNameHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-        String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+        String fileName = MinIO.fetchInfoFromStorePublicDirectory(fileUUID);
         if (fileName.equals("")) {
             ctx.response().setStatusCode(404).end();
         } else {
@@ -278,7 +279,7 @@ public class Server {
     public static void publicFindVideoHandler(RoutingContext ctx) {
         log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
         String fileUUID = ctx.request().getParam("fileuuid");
-        StatObjectResponse stat = Minio.fetchStatFromStorePublicDirectory(fileUUID + "-mp4-360p");
+        StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID + "-mp4-360p");
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
         } else {
@@ -309,7 +310,7 @@ public class Server {
             String contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
             log.debug("#### contentLength: " + contentLength);
 
-            byte[] fetchFromStore = Minio.streamFromStorePublicDirectory(fileUUID + VideoConstants.suffix360p, rangeStart, Long.valueOf(contentLength));
+            byte[] fetchFromStore = MinIO.streamFromStorePublicDirectory(fileUUID + VideoConstants.suffix360p, rangeStart, Long.valueOf(contentLength));
             if (fetchFromStore.length == 0) {
                 log.debug("#### Video not found");
                 ctx.response().setStatusCode(404).end();
@@ -328,8 +329,8 @@ public class Server {
     public static void publicFindFileHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
 
-        byte[] fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
-        String fileName = Minio.fetchInfoFromStorePublicDirectory(fileUUID);
+        byte[] fetchFromStore = MinIO.fetchFromStorePublicDirectory(fileUUID);
+        String fileName = MinIO.fetchInfoFromStorePublicDirectory(fileUUID);
         if (fileName.equals("")) {
             fileName = fileUUID.toString();
         }
@@ -402,13 +403,13 @@ public class Server {
 
             if (quality.equals("360")) {
                 log.debug("#### Fetching 360p quality for: "+ fileUUID);
-                fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video360FileName);
+                fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video360FileName);
             } else if (quality.equals("720")) {
                 log.debug("#### Fetching 720p quality for: "+ fileUUID);
-                fetchFromStore = Minio.fetchFromStorePublicDirectory(mp4Video720FileName);
+                fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video720FileName);
             } else if (quality.equals("original")) {
                 log.debug("#### Fetching original quality for: "+ fileUUID);
-                fetchFromStore = Minio.fetchFromStorePublicDirectory(fileUUID);
+                fetchFromStore = MinIO.fetchFromStorePublicDirectory(fileUUID);
             } else {
                 log.debug("#### Video not found");
                 ctx.response().setStatusCode(404).end();
@@ -439,38 +440,38 @@ public class Server {
     }
 
     public static void publicConvertToMultipleQualities(RoutingContext ctx) {
+        String fileUuid = ctx.request().getParam("fileUuid");
         try {
-            String fileUuid = ctx.request().getParam("fileUuid");
-            byte[] originalVideoByteArray = Minio.fetchFromStorePublicDirectory(fileUuid);
+            byte[] originalVideoByteArray = MinIO.fetchFromStorePublicDirectory(fileUuid);
 
             if (originalVideoByteArray.length == 0) {
                 log.debug("#### Video not found");
                 ctx
                     .response()
                     .setStatusCode(404)
-                    .end("Failure::Video Not Found");
+                    .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Not Found: "+ fileUuid)));
             } else {
                 log.debug("#### Video found");
                 log.debug("#### Converting started");
-                ConvertUtils.convert(fileUuid, originalVideoByteArray);
+                ResponseWrapper response = VideoQualityConverter.convert(fileUuid, originalVideoByteArray);
                 log.debug("#### Converting ended");
                 ctx
                     .response()
                     .setStatusCode(200)
-                    .end("Success");
+                    .end(JsonUtils.toJson(response));
             }
         } catch (Exception ex) {
             log.error("Exception: " + ex.getMessage());
             ctx
                 .response()
                 .setStatusCode(500)
-                .end("Failure::Error Occurred");
+                .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Conversion Failed for : "+ fileUuid)));
         }
     }
 
     public static void publicDeleteFileHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
-        Minio.deleteFromStorePublicDirectory(fileUUID);
+        MinIO.deleteFromStorePublicDirectory(fileUUID);
         ctx.response().end();
     }
 

@@ -23,8 +23,8 @@ import java.io.FileWriter;
 import java.util.Optional;
 import java.util.UUID;
 
-public class Minio {
-    private static final Logger log = LoggerFactory.getLogger(Minio.class);
+public class MinIO {
+    private static final Logger log = LoggerFactory.getLogger(MinIO.class);
     private static MinioClient minioClient;
     private static String REALM = Optional.ofNullable(System.getenv("REALM")).orElse("internmatch");
 
