@@ -33,10 +33,10 @@ public class VideoUtils {
         audio.setSamplingRate(44100);
         audio.setChannels(2);
         VideoAttributes video = new VideoAttributes();
-        video.setCodec("h264");
-        video.setX264Profile(X264_PROFILE.BASELINE);
+//        video.setCodec("h264");
+//        video.setX264Profile(X264_PROFILE.MAIN);
         video.setBitRate(videoBitrate);
-        video.setFrameRate(30);
+//        video.setFrameRate(30);
         video.setFaststart(true);
         EncodingAttributes attrs = new EncodingAttributes();
 

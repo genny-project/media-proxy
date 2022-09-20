@@ -247,6 +247,9 @@ public class Server {
                                 }
                             }
                             ResponseWrapper responseWrapper = VideoQualityConverter.convert(fileUUID.toString().concat(extension), file);
+                            if(!responseWrapper.getSuccess()){
+                                ctx.response().setStatusCode(401).end();
+                            }
                         } else {
                             fileUUID = MinIO.saveOnStore(file);
                         }
