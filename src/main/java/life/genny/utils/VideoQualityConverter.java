@@ -25,9 +25,9 @@ public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
     private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
 
-    private static Thread createThreadFactory(Runnable runnable){
-        Thread thread =  new Thread(runnable);
-        thread.setName("videoconverter-"+thread.getName().toLowerCase());
+    private static Thread createThreadFactory(Runnable runnable) {
+        Thread thread = new Thread(runnable);
+        thread.setName("videoconverter-" + thread.getName().toLowerCase());
         return thread;
     }
 
@@ -88,11 +88,11 @@ public class VideoQualityConverter {
     }
 
     public static Boolean convert(File input, String fileName, Integer bitRate) {
-
         try {
-            File target = VideoUtils.convert(fileName+".mp4", input, "mp4", bitRate);
+            fileName = fileName.concat(".mp4");
+            File target = VideoUtils.convert(fileName, input, "mp4", bitRate);
             log.debug("#### Converted: " + fileName);
-            MinIO.saveOnStore(fileName+".mp4", target);
+            MinIO.saveOnStore(fileName, target);
             log.debug("#### Saved: " + fileName);
             target.delete();
             return true;

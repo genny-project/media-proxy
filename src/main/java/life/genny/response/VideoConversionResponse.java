@@ -13,7 +13,6 @@ public class VideoConversionResponse implements Serializable {
         return this;
     }
 
-
     public VideoConversionResponse videoId(String videoId) {
         this.videoId = videoId;
         return this;

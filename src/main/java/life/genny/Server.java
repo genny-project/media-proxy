@@ -14,6 +14,7 @@ import io.vertx.rxjava.ext.web.handler.CorsHandler;
 import life.genny.constants.VideoConstants;
 import life.genny.qwandautils.JsonUtils;
 import life.genny.response.ResponseWrapper;
+import life.genny.response.VideoConversionResponse;
 import life.genny.security.TokenIntrospection;
 import life.genny.utils.BufferUtils;
 import life.genny.utils.VideoQualityConverter;
@@ -227,9 +228,10 @@ public class Server {
                     File input = new File(file.uploadedFileName());
                     Tika tika = new Tika();
                     UUID fileUUID = null;
-                    Map<String, String> map = new HashMap<>();
-                    try {
 
+                    Map<String, String> map = new HashMap<>();
+                    ResponseWrapper responseWrapper = null;
+                    try {
                         String mimeType = tika.detect(input);
                         if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
 
@@ -246,8 +248,8 @@ public class Server {
                                     fileUUID = MinIO.saveOnStore(file);
                                 }
                             }
-                            ResponseWrapper responseWrapper = VideoQualityConverter.convert(fileUUID.toString().concat(extension), file);
-                            if(!responseWrapper.getSuccess()){
+                            responseWrapper = VideoQualityConverter.convert(fileUUID.toString().concat(extension), file);
+                            if(responseWrapper != null && !responseWrapper.getSuccess()){
                                 ctx.response().setStatusCode(401).end();
                             }
                         } else {
@@ -263,7 +265,13 @@ public class Server {
                     map.put("name", file.fileName());
                     if (fileUUID != null) {
                         map.put("uuid", fileUUID.toString().concat(extension));
-
+                        // Sending conversion details
+                        if(responseWrapper != null && responseWrapper.getSuccess()){
+                            VideoConversionResponse videoConversionResponse = (VideoConversionResponse) responseWrapper.getData();
+                            videoConversionResponse.getQualities().forEach((k,v) -> {
+                                map.put(k,v.toString());
+                            });
+                        }
                         log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
                     } else {
                         map.put("uuid", "");
