@@ -22,6 +22,7 @@ import java.util.UUID;
 
 public class VideoUtils {
     private static Logger log = LoggerFactory.getLogger(VideoUtils.class);
+
     public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
         log.debug("#### Starting video conversion");
         Instant start = Instant.now();
@@ -55,7 +56,7 @@ public class VideoUtils {
 
             @Override
             public void progress(int i) {
-                log.debug("#### Progress State: " + i);
+                log.debug("#### Progress State for " + fileName + ": " + i);
             }
 
             @Override

@@ -16,3 +16,4 @@ src/main/resources/media-proxy-git.properties
 *.iml
 /target/
 /videos
+.DS_Store
