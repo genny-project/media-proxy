@@ -25,6 +25,7 @@ public class VideoUtils {
 
     public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
         log.debug("#### Starting video conversion");
+        log.debug("#### This is the new code base");
         Instant start = Instant.now();
         File target = TemporaryFileStore.createTemporaryFile(fileName);
 
