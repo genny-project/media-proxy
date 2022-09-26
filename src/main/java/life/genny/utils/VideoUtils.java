@@ -21,7 +21,7 @@ public class VideoUtils {
     private static Logger log = LoggerFactory.getLogger(VideoUtils.class);
 
     public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
-        log.debug("#### Starting video conversion");
+        log.debug("#### Starting video conversion for: "+ fileName);
         Instant start = Instant.now();
         File target = TemporaryFileStore.createTemporaryFile(fileName);
         AudioAttributes audio = new AudioAttributes();
@@ -64,7 +64,7 @@ public class VideoUtils {
         Instant end = Instant.now();
         Duration timeElapsed = Duration.between(start, end);
         log.debug("#### Time taken to convert: " + timeElapsed.toMillis() + " milliseconds");
-        log.debug("#### Ended video conversion");
+        log.debug("#### Ended video conversion for: "+ fileName);
         return target;
     }
 }

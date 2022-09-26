@@ -308,7 +308,6 @@ public class Server {
 
 
     public static void publicFindVideoHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
         String fileUUID = ctx.request().getParam("fileuuid");
         String fileName = fileUUID + VideoConstants.suffix360p + ".mp4";
         StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileName);
@@ -422,8 +421,6 @@ public class Server {
     }
 
     public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
-        log.debug("#### Handler Thread is: " + Thread.currentThread().getName());
-
         try {
             String fileUUID = ctx.request().getParam("fileUUID");
             log.debug("#### Request uuid: " + fileUUID);
@@ -492,7 +489,7 @@ public class Server {
         String fileUuid = ctx.request().getParam("fileUuid");
         try {
             byte[] originalVideoByteArray = MinIO.fetchFromStorePublicDirectory(fileUuid);
-
+new JSONObject();
             if (originalVideoByteArray.length == 0) {
                 log.debug("#### Video not found");
                 ctx
