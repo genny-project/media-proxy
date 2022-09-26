@@ -116,10 +116,6 @@ public class Server {
                 .route(HttpMethod.DELETE, "/public/:fileuuid")
                 .blockingHandler(Server::publicDeleteFileHandler, false);
 
-//        router
-//                .route(HttpMethod.GET, "/public/convert/:fileuuid")
-//                .blockingHandler(Server::publicConvertToMultipleQualities, false);
-
         vertx
                 .createHttpServer()
                 .requestHandler(router::accept)
@@ -215,8 +211,8 @@ public class Server {
             String realm = MinIO.extractRealm(tokenFromHeader);
             log.debug("DEBUG: get realm:" + realm + " from token");
             System.out.print("DEBUG: get token from header:" + tokenFromHeader);
-//            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
-            Boolean isAllowed = true;
+            Boolean isAllowed = TokenIntrospection.checkAuthForRoles(MonoVertx.getInstance().getVertx(), roles, tokenFromHeader);
+//            Boolean isAllowed = true;
             if (!isAllowed) {
                 log.debug("User not allowed to upload file, reject");
                 ctx.response().setStatusCode(401).end();
@@ -484,37 +480,6 @@ public class Server {
             log.error("Exception: " + ex.getMessage());
         }
     }
-
-    public static void publicConvertToMultipleQualities(RoutingContext ctx) {
-        String fileUuid = ctx.request().getParam("fileUuid");
-        try {
-            byte[] originalVideoByteArray = MinIO.fetchFromStorePublicDirectory(fileUuid);
-new JSONObject();
-            if (originalVideoByteArray.length == 0) {
-                log.debug("#### Video not found");
-                ctx
-                        .response()
-                        .setStatusCode(404)
-                        .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Not Found: " + fileUuid)));
-            } else {
-                log.debug("#### Video found");
-                log.debug("#### Converting started");
-                ResponseWrapper response = VideoQualityConverter.convert(fileUuid, originalVideoByteArray);
-                log.debug("#### Converting ended");
-                ctx
-                        .response()
-                        .setStatusCode(200)
-                        .end(JsonUtils.toJson(response));
-            }
-        } catch (Exception ex) {
-            log.error("Exception: " + ex.getMessage());
-            ctx
-                    .response()
-                    .setStatusCode(500)
-                    .end(JsonUtils.toJson(new ResponseWrapper().success(false).description("Video Conversion Failed for : " + fileUuid)));
-        }
-    }
-
     public static void publicDeleteFileHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         MinIO.deleteFromStorePublicDirectory(fileUUID);
