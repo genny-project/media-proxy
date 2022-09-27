@@ -73,6 +73,7 @@ public class VideoQualityConverter {
             input.delete();
             return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
         } else {
+            count++;
             CompletableFuture<Boolean> task360p = CompletableFuture
                     .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
 
