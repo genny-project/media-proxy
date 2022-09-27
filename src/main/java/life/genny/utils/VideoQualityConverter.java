@@ -83,7 +83,10 @@ public class VideoQualityConverter {
                         .put("360p", task360p.join())
                         .put("720p", task720p.join());
             });
-            videoConversionResponse = completableFuture.join();
+            while (!completableFuture.isDone()){
+                log.debug("Waiting to complete task.");
+            }
+            videoConversionResponse = completableFuture.get();
         }
 
         Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
