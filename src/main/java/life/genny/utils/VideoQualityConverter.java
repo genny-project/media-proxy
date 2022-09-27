@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
 
 public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
-    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
+//    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
 
     private static Thread createThreadFactory(Runnable runnable) {
         Thread thread = new Thread(runnable);
@@ -57,21 +57,15 @@ public class VideoQualityConverter {
         File input = TemporaryFileStore.createTemporaryFile(fileUUID);
         FileUtils.writeByteArrayToFile(input, inputByteData);
 
-        CompletableFuture<Boolean> task360p = CompletableFuture
-                .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
+        Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
+        Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
 
-        CompletableFuture<Boolean> task720p = CompletableFuture
-                .supplyAsync(() -> convert(input, mp4Video720FileName,  quality.getInteger("720")), executors);
+        VideoConversionResponse videoConversionResponse = new VideoConversionResponse()
+                .videoId(fileUUID)
+                .put("360p", is360Completed)
+                .put("720p", is720Completed);
 
-        CompletableFuture<VideoConversionResponse> completableFuture = CompletableFuture.allOf(task360p, task720p).thenApply(v -> {
-            input.delete();
-            return new VideoConversionResponse()
-                    .videoId(fileUUID)
-                    .put("360p", task360p.join())
-                    .put("720p", task720p.join());
-        });
-
-        VideoConversionResponse videoConversionResponse = completableFuture.join();
+        input.delete();
         Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
 
         return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
