@@ -26,6 +26,9 @@ public class VideoQualityConverter {
     private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
     private static int count = 1;
 
+    private static String successResponse = "Success";
+    private static String failureResponse = "Failure";
+
     private static Thread createThreadFactory(Runnable runnable) {
         Thread thread = new Thread(runnable);
         thread.setName("videoconverter-" + thread.getName().toLowerCase());
@@ -71,7 +74,7 @@ public class VideoQualityConverter {
 
             Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
             input.delete();
-            return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
+            return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
         } else {
             count++;
             CompletableFuture<Boolean> task360p = CompletableFuture
@@ -90,7 +93,7 @@ public class VideoQualityConverter {
                         return response;
                     }).thenApply(videoConversionResponse -> {
                         Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-                        return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
+                        return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
                     }).join();
 
             input.delete();
