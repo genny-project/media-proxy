@@ -4,13 +4,10 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.ext.web.FileUpload;
 import life.genny.ApplicationConfig;
 import life.genny.MinIO;
-import life.genny.constants.QualityConstants;
 import life.genny.constants.VideoConstants;
 import life.genny.response.ResponseWrapper;
 import life.genny.response.VideoConversionResponse;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.concurrent.BasicThreadFactory;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
