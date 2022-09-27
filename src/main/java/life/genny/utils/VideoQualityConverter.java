@@ -58,17 +58,20 @@ public class VideoQualityConverter {
         JsonObject quality = ApplicationConfig.getConfig().getJsonObject("video").getJsonObject("quality");
         File input = TemporaryFileStore.createTemporaryFile(fileUUID);
         FileUtils.writeByteArrayToFile(input, inputByteData);
-        VideoConversionResponse videoConversionResponse = null;
+
         if (count == 1) {
+            count++;
             Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
             Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
 
-            videoConversionResponse = new VideoConversionResponse()
+            VideoConversionResponse videoConversionResponse  = new VideoConversionResponse()
                     .videoId(fileUUID)
                     .put("360p", is360Completed)
                     .put("720p", is720Completed);
 
+            Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
             input.delete();
+            return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
         } else {
             CompletableFuture<Boolean> task360p = CompletableFuture
                     .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
@@ -76,26 +79,24 @@ public class VideoQualityConverter {
             CompletableFuture<Boolean> task720p = CompletableFuture
                     .supplyAsync(() -> convert(input, mp4Video720FileName, quality.getInteger("720")), executors);
 
-            CompletableFuture<VideoConversionResponse> completableFuture = CompletableFuture.allOf(task360p, task720p).thenApply(v -> {
-
+            ResponseWrapper responseWrapper =  CompletableFuture.allOf(task360p, task720p)
+            .thenApply(v -> {
                 VideoConversionResponse response = new VideoConversionResponse()
                         .videoId(fileUUID)
                         .put("360p", task360p.join())
                         .put("720p", task720p.join());
-                input.delete();
+
                 return response;
-            });
-            while (!completableFuture.isDone()) {
-                log.debug("Waiting to complete task.");
-            }
-            videoConversionResponse = completableFuture.join();
+            }).thenApply(videoConversionResponse -> {
+                Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
+                return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
+            }).join();
+
+            input.delete();
+            return responseWrapper;
+
         }
 
-        Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-
-        count++;
-
-        return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
     }
 
     public static Boolean checkIfAllConverted(Map<String, Boolean> map) {
