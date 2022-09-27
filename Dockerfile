@@ -6,7 +6,8 @@ RUN apk update && apk add jq && apk add curl && apk add bash
 
 ENV MEDIA_PROXY_SERVER_PORT 80
 ADD target/media-proxy-fat.jar /service.jar
-ADD src/conf/ /
+RUN mkdir -p /src/conf
+ADD src/conf/ /src/conf/
 ADD docker-entrypoint.sh /docker-entrypoint.sh
 
 WORKDIR /

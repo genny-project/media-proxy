@@ -81,17 +81,17 @@ public class VideoQualityConverter {
                     .supplyAsync(() -> convert(input, mp4Video720FileName, quality.getInteger("720")), executors);
 
             ResponseWrapper responseWrapper =  CompletableFuture.allOf(task360p, task720p)
-            .thenApply(v -> {
-                VideoConversionResponse response = new VideoConversionResponse()
-                        .videoId(fileUUID)
-                        .put("360p", task360p.join())
-                        .put("720p", task720p.join());
+                    .thenApply(v -> {
+                        VideoConversionResponse response = new VideoConversionResponse()
+                                .videoId(fileUUID)
+                                .put("360p", task360p.join())
+                                .put("720p", task720p.join());
 
-                return response;
-            }).thenApply(videoConversionResponse -> {
-                Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-                return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
-            }).join();
+                        return response;
+                    }).thenApply(videoConversionResponse -> {
+                        Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
+                        return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
+                    }).join();
 
             input.delete();
             return responseWrapper;
