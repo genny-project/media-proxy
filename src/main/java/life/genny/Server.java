@@ -1,6 +1,11 @@
 package life.genny;
 
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.minio.StatObjectResponse;
+import io.vertx.config.ConfigRetriever;
+import io.vertx.config.ConfigRetrieverOptions;
+import io.vertx.config.ConfigStoreOptions;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
@@ -22,14 +27,12 @@ import life.genny.utils.TemporaryFileStore;
 import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpStatus;
 import org.apache.tika.Tika;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Server {
     private static final Logger log = LoggerFactory.getLogger(Server.class);
@@ -69,8 +72,22 @@ public class Server {
 
     public static void run() {
         Vertx vertx = Vertx.newInstance(MonoVertx.getInstance().getVertx());
+
         Router router = Router.router(vertx);
         router.route().handler(corsHandler());
+
+        ConfigStoreOptions propertyWithHierarchical = new ConfigStoreOptions()
+                .setType("file")
+                .setFormat("yaml")
+                .setConfig(new JsonObject()
+                        .put("path", "src/conf/application.yaml")
+                );
+
+        ConfigRetrieverOptions options = new ConfigRetrieverOptions()
+                .addStore(propertyWithHierarchical);
+
+        ConfigRetriever configRetriever = ConfigRetriever.create(vertx.getDelegate(), options);
+        configRetriever.configStream().handler(ApplicationConfig::setConfig);
 
         /*
          * setBodyLimit expected a long that defines the number of bytes so a file of 100 kilobytes should
@@ -129,7 +146,7 @@ public class Server {
             ctx.response().setStatusCode(404).end();
         } else {
             long videoSize = stat.size();
-            log.debug("#### videoSize: " + videoSize);
+            log.debug("videoSize: " + videoSize);
             ctx.response()
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
@@ -236,7 +253,7 @@ public class Server {
                                 fileUUID = MinIO.saveOnStore(file, extension);
                             } else {
                                 String[] fileSplit = file.fileName().split("\\.");
-                                log.debug("#### fileSplit: " + Arrays.asList(fileSplit));
+                                log.debug(" fileSplit: " + Arrays.asList(fileSplit));
                                 if (fileSplit.length > 0) {
                                     extension = "." + fileSplit[fileSplit.length - 1];
                                     fileUUID = MinIO.saveOnStore(file, extension);
@@ -311,14 +328,14 @@ public class Server {
             ctx.response().setStatusCode(404).end();
         } else {
             long videoSize = stat.size();
-            log.debug("#### Video Size: " + videoSize);
+            log.debug(" Video Size: " + videoSize);
 
             String range = ctx.request().getHeader("Range");
             long rangeStart = 0;
             long rangeEnd;
 
             String[] ranges = range.split("-");
-            log.debug("#### ranges: " + Arrays.toString(ranges));
+            log.debug(" ranges: " + Arrays.toString(ranges));
             rangeStart = Long.parseLong(ranges[0].substring(6));
 
             if (ranges.length > 1) {
@@ -331,16 +348,16 @@ public class Server {
                 rangeEnd = videoSize - 1;
             }
 
-            log.debug("#### rangeStart: " + rangeStart);
-            log.debug("#### rangeEnd: " + rangeEnd);
+            log.debug("rangeStart: " + rangeStart);
+            log.debug("rangeEnd: " + rangeEnd);
 
             String contentLength = String.valueOf(Math.min(1024 * 1024L, rangeEnd - rangeStart + 1));
-            log.debug("#### contentLength: " + contentLength);
+            log.debug("contentLength: " + contentLength);
 
-            log.debug("#### fileName: " + fileName);
+            log.debug("fileName: " + fileName);
             byte[] fetchFromStore = MinIO.streamFromStorePublicDirectory(fileName, rangeStart, Long.valueOf(contentLength));
             if (fetchFromStore.length == 0) {
-                log.debug("#### Video not found");
+                log.debug("Video not found");
                 ctx.response().setStatusCode(404).end();
             } else {
                 ctx.response()
@@ -390,10 +407,10 @@ public class Server {
             f.delete();
             if (mimeType.startsWith("video/") || APPLICATION_X_MATROSKA.equals(mimeType)) {
                 String uuid = UUID.randomUUID().toString();
-                log.debug("##### vDetected Video Type");
+                log.debug("vDetected Video Type");
                 if (fileName.split("\\.").length == 1) {
                     if (APPLICATION_X_MATROSKA.equals(mimeType)) {
-                        log.debug("##### APPLICATION_X_MATROSKA Detected");
+                        log.debug("APPLICATION_X_MATROSKA Detected");
                         mimeType = "video/webm";
                         fileName = uuid + ".webm";
                     } else {
@@ -402,12 +419,12 @@ public class Server {
                         fileName = uuid + ".mp4";
                     }
                 } else {
-                    log.debug("#### Extension Found");
+                    log.debug("Extension Found");
                     String[] splitted = fileName.split("\\.");
                     String extension = splitted[splitted.length - 1];
                     fileName = uuid + "." + extension;
                 }
-                log.debug("##### Downloaded fileName: " + fileName);
+                log.debug("Downloaded fileName: " + fileName);
             }
 
 
@@ -419,7 +436,7 @@ public class Server {
     public static void publicFindVideoByTypeHandler(RoutingContext ctx) {
         try {
             String fileUUID = ctx.request().getParam("fileUUID");
-            log.debug("#### Request uuid: " + fileUUID);
+            log.debug("Request uuid: " + fileUUID);
             String quality = ctx.request().getParam("quality");
             UUID uuid = UUID.randomUUID();
             String fileName = "";
@@ -429,15 +446,15 @@ public class Server {
             byte[] fetchFromStore = null;
 
             if (quality.equals("360")) {
-                log.debug("#### Fetching 360p quality for: " + fileUUID);
+                log.debug("Fetching 360p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video360FileName);
                 fileName = uuid.toString() + ".mp4";
             } else if (quality.equals("720")) {
-                log.debug("#### Fetching 720p quality for: " + fileUUID);
+                log.debug("Fetching 720p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video720FileName);
                 fileName = uuid.toString() + ".mp4";
             } else if (quality.equals("original")) {
-                log.debug("#### Fetching original quality for: " + fileUUID);
+                log.debug("Fetching original quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(fileUUID);
                 Tika tika = new Tika();
                 String mimeType = tika.detect(fetchFromStore);
@@ -453,7 +470,7 @@ public class Server {
                     }
                 }
             } else {
-                log.debug("#### Video not found");
+                log.debug("Video not found");
                 ctx.response().setStatusCode(404).end();
             }
 

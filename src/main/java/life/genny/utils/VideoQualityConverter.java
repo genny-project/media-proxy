@@ -1,6 +1,8 @@
 package life.genny.utils;
 
+import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.ext.web.FileUpload;
+import life.genny.ApplicationConfig;
 import life.genny.MinIO;
 import life.genny.constants.QualityConstants;
 import life.genny.constants.VideoConstants;
@@ -54,15 +56,15 @@ public class VideoQualityConverter {
     public static ResponseWrapper convert(String fileUUID, byte[] inputByteData) throws Exception {
         String mp4Video720FileName = fileUUID + VideoConstants.suffix720p;
         String mp4Video360FileName = fileUUID + VideoConstants.suffix360p;
-
+        JsonObject quality = ApplicationConfig.getConfig().getJsonObject("video").getJsonObject("quality");
         File input = TemporaryFileStore.createTemporaryFile(fileUUID);
         FileUtils.writeByteArrayToFile(input, inputByteData);
 
         CompletableFuture<Boolean> task360p = CompletableFuture
-                .supplyAsync(() -> convert(input, mp4Video360FileName, QualityConstants.quality.get("360")), executors);
+                .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
 
         CompletableFuture<Boolean> task720p = CompletableFuture
-                .supplyAsync(() -> convert(input, mp4Video720FileName, QualityConstants.quality.get("720")), executors);
+                .supplyAsync(() -> convert(input, mp4Video720FileName,  quality.getInteger("720")), executors);
 
         CompletableFuture<VideoConversionResponse> completableFuture = CompletableFuture.allOf(task360p, task720p).thenApply(v -> {
             input.delete();
@@ -91,9 +93,9 @@ public class VideoQualityConverter {
         try {
             fileName = fileName.concat(".mp4");
             File target = VideoUtils.convert(fileName, input, "mp4", bitRate);
-            log.debug("#### Converted: " + fileName);
+            log.debug("Converted: " + fileName);
             MinIO.saveOnStore(fileName, target);
-            log.debug("#### Saved: " + fileName);
+            log.debug("Saved: " + fileName);
             target.delete();
             return true;
         } catch (Exception e) {
