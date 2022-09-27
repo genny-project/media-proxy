@@ -16,3 +16,4 @@ EXPOSE $MEDIA_PROXY_SERVER_PORT
 HEALTHCHECK --interval=10s --timeout=3s --retries=15 CMD curl -f / http://localhost:80/version || exit 1
 
 ENTRYPOINT [ "/docker-entrypoint.sh" ]
+
