@@ -19,13 +19,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+
 
 public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
     private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
-    private static final ScheduledExecutorService service = Executors.newScheduledThreadPool(5);
     private static int count = 1;
 
     private static Thread createThreadFactory(Runnable runnable) {
