@@ -20,9 +20,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+
 public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
-//    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
+    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
+    private static int count = 1;
 
     private static Thread createThreadFactory(Runnable runnable) {
         Thread thread = new Thread(runnable);
@@ -56,17 +58,37 @@ public class VideoQualityConverter {
         JsonObject quality = ApplicationConfig.getConfig().getJsonObject("video").getJsonObject("quality");
         File input = TemporaryFileStore.createTemporaryFile(fileUUID);
         FileUtils.writeByteArrayToFile(input, inputByteData);
+        VideoConversionResponse videoConversionResponse = null;
+        if (count == 1) {
+            Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
+            Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
 
-        Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
-        Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
+            videoConversionResponse = new VideoConversionResponse()
+                    .videoId(fileUUID)
+                    .put("360p", is360Completed)
+                    .put("720p", is720Completed);
 
-        VideoConversionResponse videoConversionResponse = new VideoConversionResponse()
-                .videoId(fileUUID)
-                .put("360p", is360Completed)
-                .put("720p", is720Completed);
+            input.delete();
+        } else {
+            CompletableFuture<Boolean> task360p = CompletableFuture
+                    .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
 
-        input.delete();
+            CompletableFuture<Boolean> task720p = CompletableFuture
+                    .supplyAsync(() -> convert(input, mp4Video720FileName, quality.getInteger("720")), executors);
+
+            CompletableFuture<VideoConversionResponse> completableFuture = CompletableFuture.allOf(task360p, task720p).thenApply(v -> {
+                input.delete();
+                return new VideoConversionResponse()
+                        .videoId(fileUUID)
+                        .put("360p", task360p.join())
+                        .put("720p", task720p.join());
+            });
+            videoConversionResponse = completableFuture.join();
+        }
+
         Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
+
+        count++;
 
         return new ResponseWrapper().data(videoConversionResponse).description(completed ? "Success" : "Failure").success(completed);
     }
