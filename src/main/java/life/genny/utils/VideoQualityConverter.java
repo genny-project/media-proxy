@@ -16,24 +16,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 public class VideoQualityConverter {
     private static final Logger log = LoggerFactory.getLogger(VideoQualityConverter.class);
-    private static final ExecutorService executors = Executors.newFixedThreadPool(100, VideoQualityConverter::createThreadFactory);
-    private static int count = 1;
-
     private static String successResponse = "Success";
     private static String failureResponse = "Failure";
 
-    private static Thread createThreadFactory(Runnable runnable) {
-        Thread thread = new Thread(runnable);
-        thread.setName("videoconverter-" + thread.getName().toLowerCase());
-        return thread;
-    }
 
     public static ResponseWrapper convert(String uuid, FileUpload fileUpload) {
         try {
@@ -60,48 +49,24 @@ public class VideoQualityConverter {
         String mp4Video360FileName = fileUUID + VideoConstants.suffix360p;
         JsonObject quality = ApplicationConfig.getConfig().getJsonObject("video").getJsonObject("quality");
         File input = TemporaryFileStore.createTemporaryFile(fileUUID);
+
         FileUtils.writeByteArrayToFile(input, inputByteData);
 
-        if (count == 1) {
-            count++;
-            Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
-            Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
+        Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
+        Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
 
-            VideoConversionResponse videoConversionResponse  = new VideoConversionResponse()
-                    .videoId(fileUUID)
-                    .put("360p", is360Completed)
-                    .put("720p", is720Completed);
 
-            Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-            input.delete();
-            return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
-        } else {
-            count++;
-            CompletableFuture<Boolean> task360p = CompletableFuture
-                    .supplyAsync(() -> convert(input, mp4Video360FileName, quality.getInteger("360")), executors);
+        VideoConversionResponse videoConversionResponse = new VideoConversionResponse()
+                .videoId(fileUUID)
+                .put("360p", is360Completed)
+                .put("720p", is720Completed);
 
-            CompletableFuture<Boolean> task720p = CompletableFuture
-                    .supplyAsync(() -> convert(input, mp4Video720FileName, quality.getInteger("720")), executors);
+        Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
+        input.delete();
 
-            ResponseWrapper responseWrapper =  CompletableFuture.allOf(task360p, task720p)
-                    .thenApply(v -> {
-                        VideoConversionResponse response = new VideoConversionResponse()
-                                .videoId(fileUUID)
-                                .put("360p", task360p.join())
-                                .put("720p", task720p.join());
-
-                        return response;
-                    }).thenApply(videoConversionResponse -> {
-                        Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-                        return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
-                    }).join();
-
-            input.delete();
-            return responseWrapper;
-
-        }
-
+        return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
     }
+
 
     public static Boolean checkIfAllConverted(Map<String, Boolean> map) {
         for (Map.Entry<String, Boolean> entry : map.entrySet()) {

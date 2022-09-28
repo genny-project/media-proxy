@@ -19,7 +19,6 @@ import java.time.Instant;
 
 public class VideoUtils {
     private static Logger log = LoggerFactory.getLogger(VideoUtils.class);
-    private static Encoder encoder = new Encoder();
 
     public static File convert(String fileName, File input, String videoType, Integer videoBitrate) throws IOException, EncoderException {
         log.debug(" Starting video conversion for: "+ fileName);
@@ -41,7 +40,7 @@ public class VideoUtils {
         attrs.setOutputFormat(videoType);
         attrs.setAudioAttributes(audio);
         attrs.setVideoAttributes(video);
-
+        Encoder encoder = new Encoder();
         encoder.encode(new MultimediaObject(input), target, attrs, new EncoderProgressListener() {
             @Override
             public void sourceInfo(MultimediaInfo multimediaInfo) {
