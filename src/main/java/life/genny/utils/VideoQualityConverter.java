@@ -55,13 +55,13 @@ public class VideoQualityConverter {
         Boolean is360Completed = convert(input, mp4Video360FileName, quality.getInteger("360"));
         Boolean is720Completed = convert(input, mp4Video720FileName, quality.getInteger("720"));
 
+
         VideoConversionResponse videoConversionResponse = new VideoConversionResponse()
                 .videoId(fileUUID)
                 .put("360p", is360Completed)
                 .put("720p", is720Completed);
 
         Boolean completed = checkIfAllConverted(videoConversionResponse.getQualities());
-
         input.delete();
 
         return new ResponseWrapper().data(videoConversionResponse).description(completed ? successResponse : failureResponse).success(completed);
