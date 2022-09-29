@@ -142,15 +142,15 @@ public class Server {
     public static void getVideoSize(RoutingContext ctx) {
         String fileUUID = ctx.request().getParam("fileuuid");
         StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID);
-        if (stat.size() == 0) {
-            ctx.response().setStatusCode(404).end();
-        } else {
+        if (stat != null && stat.size() > 0) {
             long videoSize = stat.size();
             log.debug("videoSize: " + videoSize);
             ctx.response()
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end();
+        } else {
+            ctx.response().setStatusCode(404).end();
         }
     }
 
