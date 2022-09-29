@@ -140,7 +140,7 @@ public class Server {
     }
 
     public static void getVideoSize(RoutingContext ctx) {
-        UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+        String fileUUID = ctx.request().getParam("fileuuid");
         StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID);
         if (stat.size() == 0) {
             ctx.response().setStatusCode(404).end();
