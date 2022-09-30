@@ -1,16 +1,17 @@
 package life.genny;
 
-import com.fasterxml.jackson.databind.type.MapType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.minio.StatObjectResponse;
 import io.vertx.config.ConfigRetriever;
 import io.vertx.config.ConfigRetrieverOptions;
 import io.vertx.config.ConfigStoreOptions;
+import io.vertx.core.file.OpenOptions;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.json.JsonObject;
 import io.vertx.rxjava.core.Vertx;
 import io.vertx.rxjava.core.buffer.Buffer;
+import io.vertx.rxjava.core.file.AsyncFile;
+import io.vertx.rxjava.core.streams.Pump;
 import io.vertx.rxjava.ext.web.FileUpload;
 import io.vertx.rxjava.ext.web.Router;
 import io.vertx.rxjava.ext.web.RoutingContext;
@@ -123,7 +124,7 @@ public class Server {
 
         router
                 .route(HttpMethod.GET, "/public/video/mp4/:quality/:fileuuid")
-                .blockingHandler(Server::publicFindVideoByTypeHandler, false);
+                .handler(Server::publicFindVideoByTypeHandler);
 
         router
                 .route(HttpMethod.HEAD, "/public/video/:fileuuid")
@@ -186,7 +187,7 @@ public class Server {
                 Map<String, List<Map<String, String>>> map = new HashMap<>();
                 map.put("files", fileObjects);
                 String json = JsonUtils.toJson(map);
-                ctx.response().putHeader("Context-Type", "application/json").end(json);
+                ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(json);
             }
         } catch (Exception ex) {
             log.error("Exception : " + ex.getMessage());
@@ -211,7 +212,7 @@ public class Server {
                     for (byte e : fetchFromStore) {
                         buffer.appendByte(e);
                     }
-                    ctx.response().putHeader("Content-Type", "image/png").end(buffer);
+                    ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "image/png").end(buffer);
                 }
             }
         } catch (Exception ex) {
@@ -262,7 +263,7 @@ public class Server {
                                 }
                             }
                             responseWrapper = VideoQualityConverter.convert(fileUUID.toString().concat(extension), file);
-                            if(responseWrapper != null && !responseWrapper.getSuccess()){
+                            if (responseWrapper != null && !responseWrapper.getSuccess()) {
                                 ctx.response().setStatusCode(401).end();
                             }
                         } else {
@@ -279,10 +280,10 @@ public class Server {
                     if (fileUUID != null) {
                         map.put("uuid", fileUUID.toString().concat(extension));
                         // Sending conversion details
-                        if(responseWrapper != null && responseWrapper.getSuccess()){
+                        if (responseWrapper != null && responseWrapper.getSuccess()) {
                             VideoConversionResponse videoConversionResponse = (VideoConversionResponse) responseWrapper.getData();
-                            videoConversionResponse.getQualities().forEach((k,v) -> {
-                                map.put(k,v.toString());
+                            videoConversionResponse.getQualities().forEach((k, v) -> {
+                                map.put(k, v.toString());
                             });
                         }
                         log.debug("File uploaded, name:" + file.fileName() + ", uuid:" + fileUUID.toString());
@@ -301,7 +302,7 @@ public class Server {
                 Map<String, List<Map<String, String>>> map = new HashMap<>();
                 map.put("files", fileObjects);
                 String json = JsonUtils.toJson(map);
-                ctx.response().putHeader("Context-Type", "application/json").end(json);
+                ctx.response().putHeader(HttpHeaders.CONTENT_TYPE, "application/json").end(json);
             }
         } catch (Exception ex) {
             log.error("Exception : " + ex.getMessage());
@@ -315,7 +316,10 @@ public class Server {
         if (fileName.equals("")) {
             ctx.response().setStatusCode(404).end();
         } else {
-            ctx.response().putHeader("Content-Type", "application/json").end(new JsonObject().put("data", new JsonObject().put("name", fileName)).toString());
+            ctx
+                    .response()
+                    .putHeader(HttpHeaders.CONTENT_TYPE, "application/json")
+                    .end(new JsonObject().put("data", new JsonObject().put("name", fileName)).toString());
         }
     }
 
@@ -428,7 +432,11 @@ public class Server {
             }
 
 
-            ctx.response().putHeader("Content-Type", mimeType).putHeader("Content-Disposition", "attachment; filename= ".concat(fileName)).end(buffer);
+            ctx
+                    .response()
+                    .putHeader(HttpHeaders.CONTENT_TYPE, mimeType)
+                    .putHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename= ".concat(fileName))
+                    .end(buffer);
 
         }
     }
@@ -448,23 +456,23 @@ public class Server {
             if (quality.equals("360")) {
                 log.debug("Fetching 360p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video360FileName);
-                fileName = uuid.toString() + ".mp4";
+                fileName = uuid + ".mp4";
             } else if (quality.equals("720")) {
                 log.debug("Fetching 720p quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(mp4Video720FileName);
-                fileName = uuid.toString() + ".mp4";
+                fileName = uuid + ".mp4";
             } else if (quality.equals("original")) {
                 log.debug("Fetching original quality for: " + fileUUID);
                 fetchFromStore = MinIO.fetchFromStorePublicDirectory(fileUUID);
                 Tika tika = new Tika();
                 String mimeType = tika.detect(fetchFromStore);
                 if (APPLICATION_X_MATROSKA.equals(mimeType)) {
-                    fileName = uuid.toString() + "." + "webm";
+                    fileName = uuid + "." + "webm";
                 } else {
                     String realName = MinIO.fetchInfoFromStorePublicDirectory(fileUUID);
                     String[] splittedRealName = realName.split("\\.");
                     if (splittedRealName.length > 0) {
-                        fileName = uuid.toString() + "." + splittedRealName[splittedRealName.length - 1];
+                        fileName = uuid + "." + splittedRealName[splittedRealName.length - 1];
                     } else {
                         fileName = uuid.toString();
                     }
@@ -474,29 +482,46 @@ public class Server {
                 ctx.response().setStatusCode(404).end();
             }
 
-            Buffer outputBuffer = null;
-
             if (fetchFromStore.length != 0) {
                 File input = TemporaryFileStore.createTemporaryFile(fileName);
                 FileUtils.writeByteArrayToFile(input, fetchFromStore);
-                outputBuffer = BufferUtils.fileToBuffer(input);
-                input.delete();
+                String finalFileName = fileName;
+                ctx.vertx().fileSystem().open(input.getPath(), new OpenOptions(), readEvent -> {
+
+                    if (readEvent.failed()) {
+                        ctx.response().setStatusCode(500).end();
+                        return;
+                    }
+
+                    AsyncFile asyncFile = readEvent.result();
+
+                    ctx
+                        .response()
+                        .setChunked(true)
+                        .putHeader(HttpHeaders.CONTENT_TYPE, "video/mp4")
+                        .putHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition")
+                        .putHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename= ".concat(finalFileName));
+
+                    Pump pump = Pump.pump(asyncFile, ctx.response());
+
+                    pump.start();
+
+                    asyncFile.endHandler(aVoid -> {
+                        asyncFile.close();
+                        input.delete();
+                        ctx.response().end();
+                    });
+                });
             } else {
                 ctx.response().setStatusCode(404).end();
             }
-
-            ctx
-                    .response()
-                    .putHeader("Content-Type", "video/mp4")
-                    .putHeader("Access-Control-Expose-Headers", "Content-Disposition")
-                    .putHeader("Content-Disposition", "attachment; filename= ".concat(fileName))
-                    .end(outputBuffer);
 
         } catch (Exception ex) {
             ctx.response().setStatusCode(404).end();
             log.error("Exception: " + ex.getMessage());
         }
     }
+
     public static void publicDeleteFileHandler(RoutingContext ctx) {
         UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
         MinIO.deleteFromStorePublicDirectory(fileUUID);
