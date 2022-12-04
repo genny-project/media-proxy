@@ -1,5 +1,7 @@
 package life.genny;
 
+import life.genny.qwandautils.VaultUtils;
+
 import java.util.Optional;
 
 public class EnvironmentVariables {
@@ -14,9 +16,9 @@ public class EnvironmentVariables {
     Optional<String> minioServerURL =
         Optional.ofNullable(System.getenv("MINIO_SERVER_URL"));
     Optional<String> minioAccessKey =
-        Optional.ofNullable(System.getenv("MINIO_ACCESS_KEY"));
+        Optional.ofNullable(VaultUtils.readValue("MINIO_ACCESS_KEY"));
     Optional<String> minioPrivateKey =
-        Optional.ofNullable(System.getenv("MINIO_SECRET_KEY"));
+        Optional.ofNullable(VaultUtils.readValue("MINIO_SECRET_KEY"));
     Optional<String> bucketName =
         Optional.ofNullable(System.getenv("BUCKET_NAME"));
 
