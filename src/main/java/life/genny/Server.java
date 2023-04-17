@@ -128,7 +128,11 @@ public class Server {
 
         router
                 .route(HttpMethod.HEAD, "/public/video/:fileuuid")
-                .blockingHandler(Server::getVideoSize, false);
+                .blockingHandler(Server::getFileSize, false);
+               
+        router
+                .route(HttpMethod.HEAD, "/public/:fileuuid")
+                .blockingHandler(Server::getFileSize, false);
 
         router
                 .route(HttpMethod.DELETE, "/public/:fileuuid")
@@ -139,13 +143,13 @@ public class Server {
                 .requestHandler(router::accept)
                 .listen(serverPort);
     }
-
-    public static void getVideoSize(RoutingContext ctx) {
+    
+    public static void getFileSize(RoutingContext ctx) {
         String fileUUID = ctx.request().getParam("fileuuid");
         StatObjectResponse stat = MinIO.fetchStatFromStorePublicDirectory(fileUUID);
         if (stat != null && stat.size() > 0) {
-            long videoSize = stat.size();
-            log.debug("videoSize: " + videoSize);
+            long fileSize = stat.size();
+            log.debug("fileSize: " + fileSize);
             ctx.response()
                     .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
