@@ -125,10 +125,6 @@ public class Server {
         router
                 .route(HttpMethod.GET, "/public/video/mp4/:quality/:fileuuid")
                 .handler(Server::publicFindVideoByTypeHandler);
-
-        router
-                .route(HttpMethod.HEAD, "/public/video/:fileuuid")
-                .blockingHandler(Server::getFileSize, false);
                
         router
                 .route(HttpMethod.HEAD, "/public/:fileuuid")
