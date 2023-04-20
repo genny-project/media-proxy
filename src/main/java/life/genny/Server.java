@@ -151,7 +151,7 @@ public class Server {
             long fileSize = stat.size();
             log.debug("fileSize: " + fileSize);
             ctx.response()
-                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(videoSize))
+                    .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileSize))
                     .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .end();
         } else {

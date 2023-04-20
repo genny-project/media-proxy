@@ -17,3 +17,5 @@ src/main/resources/media-proxy-git.properties
 /target/
 /videos
 .DS_Store
+.vscode/
+bin/
