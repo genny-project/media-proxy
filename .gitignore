@@ -13,3 +13,6 @@ src/main/resources/media-proxy-git.properties
 !.gitignore
 
 /target/
+.idea/
+.vscode/
+bin/
