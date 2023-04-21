@@ -207,7 +207,7 @@ public class Server {
       UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
       ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
       if (stat != null) {
-        long fileSize = stat.size();
+        long fileSize = stat.length();
         log.debug("fileSize: " + fileSize);
 
         ctx.response()
