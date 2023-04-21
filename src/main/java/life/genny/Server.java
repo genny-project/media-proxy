@@ -208,12 +208,11 @@ public class Server {
       ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
       if (stat != null) {
         long fileSize = stat.length();
-        log.debug("fileSize: " + fileSize);
 
         ctx.response()
                 .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileSize))
                 .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
-                .end(buffer);
+                .end();
       }else{
         ctx.response().setStatusCode(404).end();
       }
