@@ -94,6 +94,9 @@ public class Server {
 
     router.route(HttpMethod.GET, "/public/video/:fileuuid")
         .blockingHandler(Server::publicFindVideoHandler);
+    
+    router.route(HttpMethod.HEAD, "/public/:fileuuid")
+        .blockingHandler(Server::fileSize);
 
     router.route(HttpMethod.DELETE, "/public/:fileuuid")
         .blockingHandler(Server::publicDeleteFileHandler);
@@ -198,6 +201,22 @@ public class Server {
       String json = JsonUtils.toJson(map);
       ctx.response().putHeader("Context-Type", "application/json").end(json);
     }
+  }
+
+  public static void fileSize(RoutingContext ctx) {
+      UUID fileUUID = UUID.fromString(ctx.request().getParam("fileuuid"));
+      ObjectStat stat = Minio.fetchStatFromStorePublicDirectory(fileUUID);
+      if (stat != null) {
+        long fileSize = stat.size();
+        log.debug("fileSize: " + fileSize);
+
+        ctx.response()
+                .putHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(fileSize))
+                .putHeader(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .end(buffer);
+      }else{
+        ctx.response().setStatusCode(404).end();
+      }
   }
 
   public static void publicFindFileNameHandler(RoutingContext ctx) {
